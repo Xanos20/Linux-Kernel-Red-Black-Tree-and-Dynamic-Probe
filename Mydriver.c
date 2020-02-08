@@ -107,50 +107,8 @@ typedef struct rb_object{
 	struct rb_node node;
 } rb_object_t;
 
-/*
-struct mytype {
-  	struct rb_node node;
-  	struct rb_object keyval;
-};
-*/
-/*
-int my_insert(struct rb_root *root, struct mytype *data) {
-  	struct rb_node **new = &(root->rb_node), *parent = NULL;
 
-  	// Figure out where to put new node 
-  	while (*new) {
-  		struct mytype *this = container_of(*new, struct mytype, node);
-  		char datakey = (char) data->keyval.key;
-  		char thiskey = (char) this->keyval.key;
-  		//int result = strcmp(data->keystring, this->keystring);
-  		//int result = strcmp(datakey, thiskey);
 
-  		char datakey_buffer[2];
-  		char thiskey_buffer[2];
-  		datakey_buffer[0] = datakey;
-  		thiskey_buffer[0] = thiskey; 
-  		datakey_buffer[1] = '\0';
-  		thiskey_buffer[1] = '\0';
-  		int result = strcmp(datakey_buffer, thiskey_buffer);
-
-  		
-
-		parent = *new;
-  		if (result < 0)
-  			new = &((*new)->rb_left);
-  		else if (result > 0)
-  			new = &((*new)->rb_right);
-  		else
-  			return 1;
-  	}
-
-  	//Add new node and rebalance tree. 
-  	rb_link_node(&data->node, parent, new);
-  	rb_insert_color(&data->node, root);
-
-	return 0;
-}
-*/
 /*
 struct mytype {
       struct rb_node node;
@@ -213,6 +171,7 @@ ssize_t rbtree_driver_write(struct file *file, const char *buf,
 		int errChkKey = get_user(toInsertKey, (buf++));
 		if(errChkKey == -EFAULT) {
 			printk("Unknown KEY  From Buffer Detected\n");
+			spin_unlock(&SPINLOCK);
 			return PTR_ERR(buf);
 
 		}
@@ -223,6 +182,7 @@ ssize_t rbtree_driver_write(struct file *file, const char *buf,
 		int errChkData = get_user(toInsertData, (buf++));
 		if(errChkData == -EFAULT) {
 			printk("Unknown DATA  From Buffer Detected\n");
+			spin_unlock(&SPINLOCK);
 			return PTR_ERR(buf);
 		}
 		int dataToInsert = (int) toInsertData;
@@ -243,7 +203,9 @@ ssize_t rbtree_driver_write(struct file *file, const char *buf,
 		
 		struct rb_object* nodeToInsert = kmalloc(sizeof(struct rb_object), GFP_KERNEL);
 		if (!nodeToInsert) {
-			printk("Bad Kmalloc\n"); return -ENOMEM;
+			printk("Bad Kmalloc\n"); 
+			spin_unlock(&SPINLOCK);
+			return -ENOMEM;
 		}
 		// fill in node 
 		nodeToInsert->key = keyToInsert;
