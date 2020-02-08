@@ -227,7 +227,7 @@ ssize_t rbtree_driver_write(struct file *file, const char *buf,
 		}
 		int dataToInsert = (int) toInsertData;
 
-		/*
+		
 		if(dataToInsert == 0) {
 			// if data==0 remove corresponding node
 			struct rb_object* nodeToDelete = mysearch(&rbtree_devp->mytree, keyToInsert);
@@ -239,7 +239,6 @@ ssize_t rbtree_driver_write(struct file *file, const char *buf,
       			return 0;
 			}
 		}
-		*/
 		
 		struct rb_object* nodeToInsert = kmalloc(sizeof(struct rb_object), GFP_KERNEL);
 		if (!nodeToInsert) {
