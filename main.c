@@ -17,7 +17,7 @@
 int main(int argc, char **argv)
 {
 	int fd, res;
-	int buff_size = 4;
+	int buff_size = 6;
 	char buff[buff_size];
 	int i = 0;
 	/*
@@ -41,6 +41,8 @@ int main(int argc, char **argv)
 	buff[1] = 2;
 	buff[2] = 3;
 	buff[3] = 4;
+	buff[4] = 1;
+	buff[5] = 7;
 	int sz = strlen(buff);
 	printf("Buff Size = %d\n", sz);
 	res = write(fd, buff, strlen(buff)+1);

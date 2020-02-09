@@ -131,7 +131,7 @@ int my_insert(struct rb_root *root, struct rb_object *nodeToInsert) {
         } else {
         	// node already exists in tree
         	// replace data
-        	this->data = new->data;
+        	this->data = nodeToInsert->data;
             return 1;
         }
         /*
@@ -166,10 +166,12 @@ ssize_t rbtree_driver_write(struct file *file, const char *buf,
 	spin_lock(&SPINLOCK);
 	// TODO: Test count
 	printk("Original Count = %zu\n", count);
-	// Because each while loop iteration takes two value from parameter buf
-	count = (count - 2);
+	// subtract one because of the strlen)+1 parameter from userspace
+	count = count - 1;
+	// divide by two because each while loop iteration takes two value from parameter buf
+	count = count / 2;
 	
-	while (count) {	
+	while (count > 0) {	
 		//get_user(rbtree_devp->in_string[rbtree_devp->current_write_pointer], buf++);
 		//printk("BUF = %s\n", buf[count]);
 		
