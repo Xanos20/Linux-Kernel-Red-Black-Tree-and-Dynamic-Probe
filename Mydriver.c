@@ -109,14 +109,40 @@ typedef struct rb_object{
 
 
 
-/*
-struct mytype {
-      struct rb_node node;
-      char *keystring;
-};
-*/
+struct rb_object *my_search(struct rb_root *root, int key)
+  {
+  	struct rb_node *node = root->rb_node;
+
+  	while (node) {
+  		struct rb_object *curr = container_of(node, struct rb_object, node);
+
+		if(key < curr->key) {
+			node = node->rb_left;
+		} 
+		else if(key > curr->key) {
+        	node = node->rb_right;
+        } 
+        else {
+        	// found node
+            return curr;
+        }
+	}
+	// node does not exist in tree
+	return NULL;
+  }
+
 
 int my_insert(struct rb_root *root, struct rb_object *nodeToInsert) {
+
+	// if nodeToInsert->data == 0
+	if(nodeToInsert->data == 0) {
+		struct rb_object *nodeToDelete = my_search(root, nodeToInsert->key);
+  		if (nodeToDelete != NULL) {
+  			rb_erase(&nodeToDelete->node, root);
+  			kfree(nodeToDelete);
+  			return 0;
+  		}
+	}
     
     struct rb_node **new = &(root->rb_node), *parent = NULL;
     // Figure out where to put new node 
@@ -134,18 +160,6 @@ int my_insert(struct rb_root *root, struct rb_object *nodeToInsert) {
         	this->data = nodeToInsert->data;
             return 1;
         }
-        /*
-        if (result < 0) {
-            new = &((*new)->rb_left);
-        }
-        else if (result > 0) {
-            new = &((*new)->rb_right);
-        }
-        else {
-        	// node already exists in tree
-            return 1;
-        }
-        */
             
     }
 
@@ -199,36 +213,40 @@ ssize_t rbtree_driver_write(struct file *file, const char *buf,
 		int dataToInsert = (int) toInsertData;
 		printk("COUNT = %zu\n", count);
 
-		/*
+		
 		if(dataToInsert == 0) {
-			// if data==0 remove corresponding node
-			struct rb_object* nodeToDelete = mysearch(&rbtree_devp->mytree, keyToInsert);
+			// If (data==0) remove corresponding node
+			struct rb_object* nodeToDelete = my_search(&(rbtree_devp->mytree), keyToInsert);
 			if (nodeToDelete) {
-				// the node exists in the tree and should be released
-      			rb_erase(&nodeToDelete->node, &mytree);
+				// the node exists in the tree and now should be deleted
+      			rb_erase(&nodeToDelete->node, &(rbtree_devp->mytree));
       			kfree(nodeToDelete);
       			printk("Node Deleted\n");
-      			return 0;
+			} else {
+				// Node does not exist in tree and no action should be taken in this while loop iteration
+			}
+
+		} else {
+			// Insert new node or replace data field of existing node in tree
+			struct rb_object* nodeToInsert = kmalloc(sizeof(struct rb_object), GFP_KERNEL);
+		    if (!nodeToInsert) {
+			    printk("Bad Kmalloc\n"); 
+			    spin_unlock(&SPINLOCK);
+			    return -ENOMEM;
+		    }
+		    // fill in node 
+		    nodeToInsert->key = keyToInsert;
+			nodeToInsert->data = dataToInsert;
+			int result = my_insert(&(rbtree_devp->mytree), nodeToInsert);
+			if(result == 0) {
+				printk("Node Inserted\n");
+			} else {
+				printk("Node Exists in Tree\n");
+				kfree(nodeToInsert);
 			}
 		}
-		*/
-		
-		struct rb_object* nodeToInsert = kmalloc(sizeof(struct rb_object), GFP_KERNEL);
-		if (!nodeToInsert) {
-			printk("Bad Kmalloc\n"); 
-			spin_unlock(&SPINLOCK);
-			return -ENOMEM;
-		}
-		// fill in node 
-		nodeToInsert->key = keyToInsert;
-		nodeToInsert->data = dataToInsert;
-		int result = my_insert(&(rbtree_devp->mytree), nodeToInsert);
-		if(result == 0) {
-			printk("Node Inserted\n");
-		} else {
-			printk("Node Exists in Tree\n");
-			kfree(nodeToInsert);
-		}
+				
+		// count should deincrement regardless of if else choice
 		count--;
 	}
 	struct rb_node *node;
@@ -320,10 +338,8 @@ int rbtree_driver_ioctl(struct inode *inode, struct file *file, unsigned int ioc
 
 /*
 read: 
-to retrieve the next object in either ascending or descending order (to be set by an ioctl call) 
-  from the RB tree. If the RB tree is empty or the next object is null, 
-  -1 is returned and errno is set to EINVAL.
-
+to retrieve the next object in either ascending or descending order (to be set by an ioctl call) from the RB tree. 
+  If the RB tree is empty or the next object is null, -1 is returned and errno is set to EINVAL.
 */
 
 
@@ -392,6 +408,7 @@ struct rbtree_dev {
  */
 int __init rbtree_driver_init(void)
 {
+	/* TODO: Create two devices!!!!!!!!!!!! */
 	int ret;
 	int time_since_boot;
 
