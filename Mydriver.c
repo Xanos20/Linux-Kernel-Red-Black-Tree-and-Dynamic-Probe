@@ -130,6 +130,8 @@ int my_insert(struct rb_root *root, struct rb_object *nodeToInsert) {
         	new = &((*new)->rb_right);
         } else {
         	// node already exists in tree
+        	// replace data
+        	this->data = new->data;
             return 1;
         }
         /*
@@ -162,9 +164,14 @@ ssize_t rbtree_driver_write(struct file *file, const char *buf,
 	struct rbtree_dev *rbtree_devp = file->private_data;
 	// LOCK
 	spin_lock(&SPINLOCK);
+	// TODO: Test count
+	printk("Original Count = %zu\n", count);
+	// Because each while loop iteration takes two value from parameter buf
+	count = (count - 2);
 	
 	while (count) {	
 		//get_user(rbtree_devp->in_string[rbtree_devp->current_write_pointer], buf++);
+		//printk("BUF = %s\n", buf[count]);
 		
 		// Get Key
 		char toInsertKey = '\0';
@@ -175,6 +182,7 @@ ssize_t rbtree_driver_write(struct file *file, const char *buf,
 			return PTR_ERR(buf);
 
 		}
+		printk("KEY = %d\n", toInsertKey);
 		int keyToInsert = (int) toInsertKey;
 
 		// Get Data
@@ -185,7 +193,9 @@ ssize_t rbtree_driver_write(struct file *file, const char *buf,
 			spin_unlock(&SPINLOCK);
 			return PTR_ERR(buf);
 		}
+		printk("DATA = %d\n", toInsertData);
 		int dataToInsert = (int) toInsertData;
+		printk("COUNT = %zu\n", count);
 
 		/*
 		if(dataToInsert == 0) {
@@ -219,6 +229,14 @@ ssize_t rbtree_driver_write(struct file *file, const char *buf,
 		}
 		count--;
 	}
+	struct rb_node *node;
+	printk("Entering Loop\n");
+    for (node = rb_first(&(rbtree_devp->mytree)); node; node = rb_next(node))
+	    printk("key=%d\n", rb_entry(node, struct rb_object, node)->key);
+	for (node = rb_first(&(rbtree_devp->mytree)); node; node = rb_next(node))
+	    printk("data=%d\n", rb_entry(node, struct rb_object, node)->data);
+	
+	
 	// UNLOCK
 	spin_unlock(&SPINLOCK);
 	return 0;
