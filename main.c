@@ -17,8 +17,7 @@
 int main(int argc, char **argv)
 {
 	int fd, res;
-	int buff_size = 6;
-	char buff[buff_size];
+	char buff[8];
 	int i = 0;
 	/*
 	if(argc == 1){
@@ -37,12 +36,20 @@ int main(int argc, char **argv)
 	printf("File REACHED\n");
 
 
-	buff[0] = 1;
-	buff[1] = 2;
-	buff[2] = 3;
-	buff[3] = 4;
-	buff[4] = 1;
-	buff[5] = 7;
+	buff[0] = 3;
+	buff[1] = 4;
+	buff[2] = 1;
+	buff[3] = 2;
+
+	buff[4] = 5;
+	buff[5] = 6;
+	buff[6] = 7;
+	buff[7] = 8;
+	printf("Buffer\n");
+	for(int i = 0; i < strlen(buff); i++) {
+		printf("%d\n", buff[i]);
+	}
+
 	int sz = strlen(buff);
 	printf("Buff Size = %d\n", sz);
 	res = write(fd, buff, strlen(buff)+1);
@@ -51,6 +58,15 @@ int main(int argc, char **argv)
 			printf("Can not write to the device file.\n");		
 			return 0;
 		}	
+		/*
+	printf("READ\n");
+	if(strcmp("show", argv[1]) == 0) {
+			memset(buff, 0, 1024);
+			res = read(fd, buff, 256);
+			sleep(1);
+			// printf("'%s'\n", buff);
+	}
+	*/
 	close(fd);
 
 
