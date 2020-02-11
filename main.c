@@ -60,6 +60,12 @@ int main(int argc, char **argv)
 	printf("SizeStruct = %ld\n", sizeof(struct pair));
 	// write one every time
 	res = write(fd, &toDriver, sizeof(struct pair));
+
+	toDriver.key = 3;
+	toDriver.data = 4;
+
+	res = write(fd, &toDriver, sizeof(struct pair));
+
 	/*
 	printf("WRITE\n");
 		if(res == strlen(buff)+1){
@@ -72,6 +78,13 @@ int main(int argc, char **argv)
 	res = read(fd, buff, sizeof(struct pair));
 	printf("READ Result = %d\n", res);
 	struct pair* validate;
+	validate = (struct pair*) buff;
+	printf("Struct Validate Key = %d", validate->key);
+	printf("Struct Validate Data = %d", validate->data);
+
+	res = read(fd, buff, sizeof(struct pair));
+	printf("READ Result = %d\n", res);
+	//struct pair* validate;
 	validate = (struct pair*) buff;
 	printf("Struct Validate Key = %d", validate->key);
 	printf("Struct Validate Data = %d", validate->data);
