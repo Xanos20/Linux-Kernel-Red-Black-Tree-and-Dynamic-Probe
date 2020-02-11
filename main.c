@@ -14,10 +14,15 @@
 #include <time.h>
 #include <errno.h>
 
+typedef struct pair {
+	int key;
+	int data;
+} pair_t;
+
 int main(int argc, char **argv)
 {
 	int fd, res;
-	char buff[8];
+	char buff[sizeof(struct pair)];
 	int i = 0;
 	/*
 	if(argc == 1){
@@ -36,30 +41,41 @@ int main(int argc, char **argv)
 	printf("File REACHED\n");
 
 
-	buff[0] = 3;
-	buff[1] = 4;
-	buff[2] = 1;
-	buff[3] = 2;
-
-	buff[4] = 5;
-	buff[5] = 6;
-	buff[6] = 7;
-	buff[7] = 8;
+	
 	printf("Buffer\n");
+	/*
 	for(int i = 0; i < strlen(buff); i++) {
 		printf("%d\n", buff[i]);
 	}
+	*/
+	struct pair toDriver;
+	toDriver.key = 1;
+	toDriver.data = 2;
 
-	int sz = strlen(buff);
-	printf("Buff Size = %d\n", sz);
-	res = write(fd, buff, strlen(buff)+1);
+	//int sz = strlen(buff);
+	//printf("Buff Size = %d\n", sz);
+	//res = write(fd, buff, strlen(buff)+1);
+	printf("Key = %d\n", toDriver.key);
+	printf("Data = %d\n", toDriver.data);
+	printf("SizeStruct = %ld\n", sizeof(struct pair));
+	// write one every time
+	res = write(fd, &toDriver, sizeof(struct pair));
+	/*
 	printf("WRITE\n");
 		if(res == strlen(buff)+1){
 			printf("Can not write to the device file.\n");		
 			return 0;
-		}	
-		/*
+		}
+		*/	
+	
 	printf("READ\n");
+	res = read(fd, buff, sizeof(struct pair));
+	printf("READ Result = %d\n", res);
+	struct pair* validate;
+	validate = (struct pair*) buff;
+	printf("Struct Validate Key = %d", validate->key);
+	printf("Struct Validate Data = %d", validate->data);
+		/*
 	if(strcmp("show", argv[1]) == 0) {
 			memset(buff, 0, 1024);
 			res = read(fd, buff, 256);
@@ -67,6 +83,7 @@ int main(int argc, char **argv)
 			// printf("'%s'\n", buff);
 	}
 	*/
+	
 	close(fd);
 
 

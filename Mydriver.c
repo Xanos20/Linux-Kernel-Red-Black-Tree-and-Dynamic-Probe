@@ -21,6 +21,11 @@
 #include <linux/rbtree.h>
 #include <linux/spinlock.h>
 
+
+#include <linux/proc_fs.h>
+#include <asm/uaccess.h>
+#include <linux/uaccess.h>
+
 #define DEVICE_NAME                 "rbt530_dev"  // device name to be created and registered
 
 
@@ -43,7 +48,7 @@ struct rbtree_dev {
 	int current_write_pointer;
     struct rb_root mytree;
     spinlock_t spinlockDevice;
-
+    int readOrderDevice;
 } *rbtree_devp;
 
 
@@ -103,9 +108,14 @@ new one. If the data field is 0, any existing object with the input key is delet
 */
 // user just passes in struct with key and vaue
 
-typedef struct rb_keydata {
+typedef struct keydata_to_read {
 	int key;
 	int data;
+} keydata_to_read_t;
+
+typedef struct rb_keydata {
+	char key;
+	char data;
 } rb_keydata_t;
 
 typedef struct rb_object{
@@ -184,6 +194,7 @@ int my_insert(struct rb_root *root, struct rb_object *nodeToInsert) {
       return 0;
 }
 
+// 
 
 ssize_t rbtree_driver_write(struct file *file, const char *buf,
            size_t count, loff_t *ppos)
@@ -197,11 +208,46 @@ ssize_t rbtree_driver_write(struct file *file, const char *buf,
 	printk("Original Count = %zu\n", count);
 	// subtract one because of the strlen)+1 parameter from userspace
 	
-	if(count % 2 == 1) {
+	/*if(count % 2 == 1) {
 		count = count - 1;
 	}
 	// divide by two because each while loop iteration takes two value from parameter buf
 	count = count / 2;
+	*/
+	struct rb_keydata intermediate;
+
+	//unsigned long errChkStruct = copy_from_user(&intermediate, buf, sizeof(struct rb_keydata));
+	int errChkKey = get_user(intermediate.key, (buf));
+		if(errChkKey == -EFAULT) {
+			printk("Unknown KEY  From Buffer Detected\n");
+			spin_unlock(&(rbtree_devp->spinlockDevice));
+			return PTR_ERR(buf);
+		}
+		// add 4 because we want the next int and int has size 4. Adding one is only for chars
+		buf = buf + 4;
+		int errChkData = get_user(intermediate.data, (buf));
+		if(errChkData == -EFAULT) {
+			printk("Unknown KEY  From Buffer Detected\n");
+			spin_unlock(&(rbtree_devp->spinlockDevice));
+			return PTR_ERR(buf);
+		}
+	printk("KEY = %d\n", intermediate.key);
+	printk("DATA = %d\n", intermediate.data);
+		/*
+	if( copy_from_user(&intermediate, buf, sizeof(struct rb_keydata)) ) {
+		spin_unlock(&(rbtree_devp->spinlockDevice));
+		return -EFAULT;
+	}
+	*/
+	/*
+		if(errChkStruct != 0) {
+			printk("Unknown Value From Buffer Detected\n");
+			spin_unlock(&(rbtree_devp->spinlockDevice));
+			return PTR_ERR(buf);
+
+		}
+		*/
+
 
 	
 	while (count > 0) {	
@@ -209,6 +255,7 @@ ssize_t rbtree_driver_write(struct file *file, const char *buf,
 		//printk("BUF = %s\n", buf[count]);
 		
 		// Get Key
+		/*
 		char toInsertKey = '\0';
 		int errChkKey = get_user(toInsertKey, (buf++));
 		if(errChkKey == -EFAULT) {
@@ -231,18 +278,42 @@ ssize_t rbtree_driver_write(struct file *file, const char *buf,
 		printk("DATA = %d\n", toInsertData);
 		int dataToInsert = (int) toInsertData;
 		printk("COUNT = %zu\n", count);
+		*/
+
 
 
 		//struct rb_node *node;
-		/*
-		printk("Entering Loop\n");
-    	for (node = rb_first(&(rbtree_devp->mytree)); node != NULL; node = rb_next(node)) {
-    		if(node != NULL) {
-    			printk("key=%d\n", rb_entry(node, struct rb_object, node)->key);
-    		}
+		//struct rb_keydata intermediate;
 
-    	}
-    	*/
+		//char KEY;
+		/*
+		int errChkKey = get_user(intermediate.key, (buf++));
+		if(errChkKey == -EFAULT) {
+			printk("Unknown KEY  From Buffer Detected\n");
+			spin_unlock(&(rbtree_devp->spinlockDevice));
+			return PTR_ERR(buf);
+		}
+		int errChkData = get_user(intermediate.data, (buf++));
+		if(errChkData == -EFAULT) {
+			printk("Unknown KEY  From Buffer Detected\n");
+			spin_unlock(&(rbtree_devp->spinlockDevice));
+			return PTR_ERR(buf);
+		}
+		*/
+		
+		/*unsigned long errChkStruct = copy_from_user(&intermediate, buf, sizeof(struct rb_keydata));
+		if(errChkStruct != 0) {
+			printk("Unknown Value From Buffer Detected\n");
+			spin_unlock(&(rbtree_devp->spinlockDevice));
+			return PTR_ERR(buf);
+
+		}
+		*/
+
+		int keyToInsert = (int) intermediate.key;
+		int dataToInsert = (int) intermediate.data;
+
+		
 
 		
 		if(dataToInsert == 0) {
@@ -353,13 +424,17 @@ Otherwise, -1 is returned and errno is set to EINVAL.
 */
 // TODO: Use unlocked ioctl
 long rbtree_driver_unlocked_ioctl(struct file *file, unsigned int ioctl_num, unsigned long ioctl_param) {
+	// TODO: local read order
+	struct rbtree_dev *rbtree_devp = file->private_data;
+
 
 	if(ioctl_num == 0) {
-		READ_ORDER = 0;
+		rbtree_devp->readOrderDevice = 0;
 	} else if(ioctl_num == 1) {
-		READ_ORDER = 1;
+		rbtree_devp->readOrderDevice = 1;
 	} else {
 		printk("ioctl must have 0 or 1 as a parameter\n");
+		// TODO: search how to set up error call ioctl
 		return -1;
 	}
 	return 0;
@@ -395,6 +470,11 @@ to retrieve the next object in either ascending or descending order (to be set b
   struct rb_node *rb_next(struct rb_node *node);
   struct rb_node *rb_prev(struct rb_node *node);
 
+  typedef struct rb_keydata {
+	char key;
+	char data;
+} rb_keydata_t;
+
 
 		struct rb_node *node;
 		printk("Entering Loop\n");
@@ -415,54 +495,84 @@ ssize_t rbtree_driver_read(struct file *file, char *buf,
 	
 	// LOCK (in case someone wants to remove driver)
 	spin_lock(&(rbtree_devp->spinlockDevice));
+	printk("COUNT READ = %zu", count);
 
 	//
 	// If we're at the end of the message, 
 	// return 0 signifying end of file 
 
 	//Actually put the data into the buffer 
+	if(count < 8) {
+		// copies data to user in 8 byte increments
+		return -1;
+	}
+
+	struct keydata_to_read sendToUser;
 
 	struct rb_node *node;
-	printk("Entering Loop\n");
-	if(READ_ORDER == 0) {
+	printk("READ\n");
+	if(rbtree_devp->readOrderDevice == 0) {
 		// read in ascending order
-		for (node = rb_first(&(rbtree_devp->mytree)); node != NULL; node = rb_next(node)) {
+		for (node = rb_first(&(rbtree_devp->mytree)); node != NULL && (count <= 8); node = rb_next(node)) {
+
     		printk("key=%d\n", rb_entry(node, struct rb_object, node)->key);
-    		int errChkPutUserKey = put_user(rb_entry(node, struct rb_object, node)->key, buf++);
-			if(errChkPutUserKey == -EFAULT) {
+    		sendToUser.key = rb_entry(node, struct rb_object, node)->key;
+    		sendToUser.data = rb_entry(node, struct rb_object, node)->data;
+    		printk("KEY = %d\n", sendToUser.key);
+    		printk("DATA = %d\n", sendToUser.data);
+    		printk("COUNT READ = %zu", count);
+
+
+
+    		//int errChkPutUserKey = put_user(rb_entry(node, struct rb_object, node)->key, buf++);
+    		//int errChkPutUserKey = put_user(rb_entry(node, struct rb_object, node)->key, buf++);
+    		int errChkKeyData = copy_to_user(buf, &sendToUser, sizeof(struct keydata_to_read));
+			if(errChkKeyData == -EFAULT) {
 				printk("Get_User Error\n");
 				spin_unlock(&(rbtree_devp->spinlockDevice));
 				return PTR_ERR(node);
 			}
 			// Update Variables
-			count--;
-			bytes_read++;
+			count = count - sizeof(struct keydata_to_read);
+			bytes_read = bytes_read + sizeof(struct keydata_to_read);
+			//count--;
+			//bytes_read++;
     		if(rb_next(node) == NULL) {
     			break;
     		}
 
    		}
-   	} else {
+   	} else if(rbtree_devp->readOrderDevice == 1) {
    		// read in descending order
    		printk("Entering Reverse Loop\n");
    		for (node = rb_last(&(rbtree_devp->mytree)); node != NULL; node = rb_prev(node)) {
+    		
     		printk("key=%d\n", rb_entry(node, struct rb_object, node)->key);
-    		int errChkPutUserKeyRev = put_user(rb_entry(node, struct rb_object, node)->key, buf++);
-			if(errChkPutUserKeyRev == -EFAULT) {
+    		sendToUser.key = rb_entry(node, struct rb_object, node)->key;
+    		sendToUser.data = rb_entry(node, struct rb_object, node)->data;
+
+    		int errChkKeyData = copy_to_user(buf, &sendToUser, sizeof(struct keydata_to_read));
+    		printk("errChkKeyData = %d\n", errChkKeyData);
+    		//int errChkPutUserKeyRev = put_user(rb_entry(node, struct rb_object, node)->key, buf++);
+			if(errChkKeyData == -EFAULT) {
 				printk("Get_User Error\n");
 				spin_unlock(&(rbtree_devp->spinlockDevice));
 				return PTR_ERR(node);
 			}
     		// Update Variables
-			count--;
-			bytes_read++;
+			count = count - sizeof(struct keydata_to_read);
+			bytes_read = bytes_read + sizeof(struct keydata_to_read);
     		if(rb_prev(node) == NULL) {
-    			printk("RB_PREV == NULL\n");
     			break;
     		}
     	}
-   	}
+   	} else {
+   		printk("Read Order Error\n");
+		spin_unlock(&(rbtree_devp->spinlockDevice));
+		return -1;
 
+   	}
+   	printk("COUNT READ outside loop = %zu", count);
 	// UNLOCK
 	spin_unlock(&(rbtree_devp->spinlockDevice));
 	// Most read functions return the number of bytes put into the buffer
@@ -547,6 +657,8 @@ struct rbtree_dev {
 	int current_write_pointer;
 	struct rb_root mytree;
 } *rbtree_devp;
+
+
 */
 
 /*
@@ -563,7 +675,7 @@ int __init rbtree_driver_init(void)
 	//spin_lock_init(&(rbtree_devp->spinlockDevice));
 
 	// set default read_order value
-	READ_ORDER = 0;
+	//READ_ORDER = 0;
 
 	/* Request dynamic allocation of a device major number */
 	if (alloc_chrdev_region(&rbtree_dev_number, 0, 1, DEVICE_NAME) < 0) {
@@ -589,6 +701,9 @@ int __init rbtree_driver_init(void)
 	}
 
 	spin_lock_init(&(rbtree_devp->spinlockDevice));
+
+	// set default read order value (can be changed with ioctl)
+	rbtree_devp->readOrderDevice = 0;
 
 	/* Request I/O region */
 	sprintf(rbtree_devp->name, DEVICE_NAME);

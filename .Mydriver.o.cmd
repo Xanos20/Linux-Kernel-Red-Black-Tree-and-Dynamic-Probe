@@ -863,6 +863,8 @@ deps_/home/linux/CSE530/Linux_Kernel_Tree/Linux-Kernel-Red-Black-Tree-and-Dynami
     $(wildcard include/config/x86/smap.h) \
   arch/x86/include/asm/extable.h \
   arch/x86/include/asm/uaccess_64.h \
+  include/linux/proc_fs.h \
+  include/linux/uaccess.h \
 
 /home/linux/CSE530/Linux_Kernel_Tree/Linux-Kernel-Red-Black-Tree-and-Dynamic-Probe/Mydriver.o: $(deps_/home/linux/CSE530/Linux_Kernel_Tree/Linux-Kernel-Red-Black-Tree-and-Dynamic-Probe/Mydriver.o)
 
