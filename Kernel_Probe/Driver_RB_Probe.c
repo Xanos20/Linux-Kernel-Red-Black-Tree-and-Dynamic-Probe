@@ -1,4 +1,4 @@
-/* ----------------------------------------------- DRIVER DriverRB_PROBE --------------------------------------------------
+/* ----------------------------------------------- DRIVER rbKprobe --------------------------------------------------
  
  Basic driver example to show skelton methods for several file operations.
  
@@ -18,7 +18,7 @@
 #include<linux/init.h>
 #include<linux/moduleparam.h>
 
-#include <linux/DriverRB_PROBE.h>
+//#include <linux/rbKprobe.h>
 #include <linux/spinlock.h>
 
 
@@ -26,24 +26,39 @@
 #include <asm/uaccess.h>
 #include <linux/uaccess.h>
 
+//#include <linux/kprobes.h>
 #include <linux/kprobes.h>
 
 #define DEVICE_NAME                 "RBprobe"  // device name to be created and registered
 
 
 /* SOURCES 
-https://www.infradead.org/~mchehab/kernel_docs/unsorted/DriverRB_PROBE.html
+https://www.infradead.org/~mchehab/kernel_docs/unsorted/rbKprobe.html
 */
 
 /* per device structure */
-//struct DriverRB_PROBE_dev {
+//struct rbKprobe_dev {
 //	struct cdev cdev;               /* The cdev structure */
 //	char name[20];                  /* Name of device*/
 //	char in_string[256];			/* buffer for the input string */
 //	int current_write_pointer;
-//} *DriverRB_PROBE_devp;
+//} *rbKprobe_devp;
 
-struct DriverRB_PROBE_dev {
+
+
+struct kprobeNode {
+	struct kprobe kp;
+	struct kprobeNode* next;
+
+};
+
+struct kprobeHead {
+	struct kprobeNode* next;
+	int size;
+};
+
+
+struct rbKprobe_dev {
 	struct cdev cdev;               /* The cdev structure */
 	char name[20];                  /* Name of device*/
 	char in_string[256];			/* buffer for the input string */
@@ -51,23 +66,29 @@ struct DriverRB_PROBE_dev {
     struct rb_root mytree;
     spinlock_t spinlockDevice;
     int readOrderDevice;
-} *DriverRB_PROBE_devp;
+    //struct kprobe kp;
+    struct kprobeHead head;
+    struct kprobeNode* curr;
+} *rbKprobe_devp;
 
+
+
+/*
 struct kprobe {
-    struct hlist_node hlist;                    /* Internal */
-    kprobe_opcode_t addr;                       /* Address of probe */
-    kprobe_pre_handler_t pre_handler;           /* Address of pre-handler */
-    kprobe_post_handler_t post_handler;         /* Address of post-handler */
-    kprobe_fault_handler_t fault_handler;       /* Address of fault handler */
-    kprobe_break_handler_t break_handler;       /* Internal */
-    kprobe_opcode_t opcode;                     /* Internal */        
-    kprobe_opcode_t insn[MAX_INSN_SIZE];        /* Internal */
+    struct hlist_node hlist;                    // Internal 
+    kprobe_opcode_t addr;                       // Address of probe 
+    kprobe_pre_handler_t pre_handler;           // Address of pre-handler 
+    kprobe_post_handler_t post_handler;         // Address of post-handler 
+    kprobe_fault_handler_t fault_handler;       // Address of fault handler 
+    kprobe_break_handler_t break_handler;       // Internal 
+    kprobe_opcode_t opcode;                     // Internal         
+    kprobe_opcode_t insn[MAX_INSN_SIZE];        // Internal 
 };
+*/
 
-
-static dev_t DriverRB_PROBE_dev_number;      /* Allotted device number */
-struct class *DriverRB_PROBE_dev_class;          /* Tie with the device model */
-static struct device *DriverRB_PROBE_dev_device;
+static dev_t rbKprobe_dev_number;      /* Allotted device number */
+struct class *rbKprobe_dev_class;          /* Tie with the device model */
+static struct device *rbKprobe_dev_device;
 
 // Global spinlock to protect tree writes and reads
 //spinlock_t SPINLOCK;
@@ -79,36 +100,63 @@ static char *user_name = "Kamal Nadesan";  /* the default user name, can be repl
 module_param(user_name,charp,0000);	//to get parameter from load.sh script to greet the user
 
 /*
-* Open DriverRB_PROBE driver
+* Open rbKprobe driver
 */
-int DriverRB_PROBE_driver_open(struct inode *inode, struct file *file)
+int rbKprobe_driver_open(struct inode *inode, struct file *file)
 {
-	struct DriverRB_PROBE_dev *DriverRB_PROBE_devp;
+	struct rbKprobe_dev *rbKprobe_devp;
 
 	/* Get the per-device structure that contains this cdev */
-	DriverRB_PROBE_devp = container_of(inode->i_cdev, struct DriverRB_PROBE_dev, cdev);
+	rbKprobe_devp = container_of(inode->i_cdev, struct rbKprobe_dev, cdev);
 
 
 	/* Easy access to cmos_devp from rest of the entry points */
-	file->private_data = DriverRB_PROBE_devp;
-	printk("\n%s is openning \n", DriverRB_PROBE_devp->name);
+	file->private_data = rbKprobe_devp;
+	printk("\n%s is openning \n", rbKprobe_devp->name);
 	return 0;
 }
 
 /*
- * Release DriverRB_PROBE driver
+ * Release rbKprobe driver
  */
-int DriverRB_PROBE_driver_release(struct inode *inode, struct file *file)
+int rbKprobe_driver_release(struct inode *inode, struct file *file)
 {
-	struct DriverRB_PROBE_dev *DriverRB_PROBE_devp = file->private_data;
+	struct rbKprobe_dev *rbKprobe_devp = file->private_data;
 	
-	printk("\n%s is closing\n", DriverRB_PROBE_devp->name);
+	printk("\n%s is closing\n", rbKprobe_devp->name);
 	
 	return 0;
 }
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 /*
- * Write to DriverRB_PROBE driver
+ * Write to rbKprobe driver
  */
 
 /*
@@ -121,26 +169,217 @@ new one. If the data field is 0, any existing object with the input key is delet
 */
 // user just passes in struct with key and vaue
 
+void Post_Handler(struct kprobe *probe, struct pt_regs *regs) {
+	printk("Post_Handler\n");
+}
+
+int Pre_Hander(struct kprobe *probe, struct pt_regs *regs) {
+
+	return 0;
+}
 
 
 
 
 
+int registerkProbe(struct rbKprobe_dev *rbKprobe_devp, const char *buf, size_t count) {
 
-ssize_t DriverRB_PROBE_driver_write(struct file *file, const char *buf,
+	// TODO: Buff should not include flag
+
+	if(rbKprobe_devp->head.next == NULL) {
+		// new node
+		rbKprobe_devp->head.next = kmalloc(sizeof(struct kprobeNode), GFP_KERNEL);	
+		if (!(rbKprobe_devp->head.next)) {
+			printk("Bad Kmalloc\n"); return -ENOMEM;
+		}
+
+		// put in new element
+		rbKprobe_devp->head.next->kp.addr = (kprobe_opcode_t*) buf;
+		rbKprobe_devp->head.next->kp.pre_handler = Pre_Hander;
+		// account for next node
+		rbKprobe_devp->head.next->next = NULL;
+		// register kprobe
+		int verifyRegister = register_kprobe(&(rbKprobe_devp->head.next->kp));
+		if(verifyRegister != 0) {
+			printk("kprobe register failed\n");
+			return -1;
+		}
+		return 0;
+	} else {
+		// TODO: append new node to end of list
+		struct kprobeNode* curr = rbKprobe_devp->head.next;
+		while(curr->next != NULL) {
+			// find the end of the list
+			curr = curr->next;
+		}
+
+		// make new node
+		curr->next = kmalloc(sizeof(struct kprobeNode), GFP_KERNEL);
+		if(!(curr->next)) {
+			printk("Bad Kmalloc\n"); return -ENOMEM;
+		}
+		// fill in new node fields
+		curr->next->kp.addr = (kprobe_opcode_t*) buf;
+		curr->next->kp.pre_handler = Pre_Hander;
+		
+		// update next ptr in new node
+		curr->next->next = NULL;
+
+		// register kprobe in new node
+		int verifyRegister = register_kprobe(&(curr->next->kp));
+		if(verifyRegister != 0) {
+			printk("kprobe register failed\n");
+			kfree(curr->next);
+			// dont want use after free
+			curr->next = NULL;
+			return -1;
+		}
+
+		// update size
+		rbKprobe_devp->head.size += 1;
+		return 0;
+	}
+	
+}
+
+
+
+
+
+int deregisterkProbe(struct rbKprobe_dev *rbKprobe_devp, const char *buf, size_t count) {
+
+	// TODO: Buff should not include flag
+	struct kprobeNode* beforeCurr;
+	struct kprobeNode* curr = rbKprobe_devp->head.next;
+
+	if(rbKprobe_devp->head.next == NULL) {
+		// there are no elements in the list
+
+		printk("List is Already Empty\n");
+		return 0;
+	} 
+	else if(rbKprobe_devp->head.next->next == NULL) {
+		// there is only one element in the list
+
+		unregister_kprobe(&(rbKprobe_devp->head.next->kp));
+		kfree(rbKprobe_devp->head.next);
+
+		// dont want use after free
+		rbKprobe_devp->head.next = NULL;
+
+		// update size
+		rbKprobe_devp->head.size = 0;
+		printk("Freed the only element in list\n");
+		return 0;
+
+	} 
+	else {
+		// find node by kp->addr
+		// there should be at least two nodes in the list
+
+		while(1) {
+			if(strcmp(curr->kp.addr, buf) == 0) {
+				// found the node
+				break;
+			} else if(curr->next == NULL) {
+				// node does not exist in list
+				printk("node does not exist in list\n");
+				return -1;
+			} else {
+				// save curr since previous node will have to point to the next node if curr is removed
+				beforeCurr = curr;
+				// search the next element
+				curr = curr->next;
+			}
+
+		}
+
+		// now that we have the node to remove...
+		if(curr == rbKprobe_devp->head.next) {
+			// remove the first node
+
+			// make the head point to the second node
+			rbKprobe_devp->head.next = curr->next;
+			// unregister kprobe of first node
+			unregister_kprobe(&(curr->kp));
+			// free
+			kfree(curr);
+			// set ptr to null so no use after free
+			curr = NULL;
+			// update size
+			rbKprobe_devp->head.size -= 1;
+			printk("Freed First Node in Multinode list\n");
+
+		} else {
+			// remove a node that is not the first node
+
+			// make the previous node to (nodetoremove)->next
+			beforeCurr->next = curr->next;
+			// unregister kprobe of node
+			unregister_kprobe(&(curr->kp));
+			// free
+			kfree(curr);
+			// set ptr to null so no use after free
+			curr = NULL;
+			// update size
+			rbKprobe_devp->head.size -= 1;
+			printk("Freed First Node in Multinode list\n");
+
+		}
+
+		return 0;
+		
+	}
+
+	return 0;
+	
+}
+
+
+
+/*
+0000000000000490
+*/
+ssize_t rbKprobe_driver_write(struct file *file, const char *buf,
            size_t count, loff_t *ppos)
 {
 	// User should provide rb_object
-	struct DriverRB_PROBE_dev *DriverRB_PROBE_devp = file->private_data;
+	struct rbKprobe_dev *rbKprobe_devp = file->private_data;
+	int flag = 1;
 	// LOCK
 
-	spin_lock(&(DriverRB_PROBE_devp->spinlockDevice));
+
+	spin_lock(&(rbKprobe_devp->spinlockDevice));
+
+	// buf will have the memory address
+	if(flag == 1) {
+		// add new kprobe node to list
+		// TODO USE THIS int verifyNewNode = registerkProbe(rbKprobe_devp, buf - sizeof(char), count - sizeof(char));
+		int verifyNewNode = registerkProbe(rbKprobe_devp, buf, count);
+		if(verifyNewNode != 0) {
+			printk("New Node Was Not Added\n");
+			spin_unlock(&(rbKprobe_devp->spinlockDevice));
+			return -1;
+		}
+	} else if(flag == 0) {
+		// remove kprobe node from list
+		// TODO USE THIS int verifyDeleteNode = deregisterkProbe(rbKprobe_devp, buf - sizeof(char), count - sizeof(char));
+		int verifyDeleteNode = deregisterkProbe(rbKprobe_devp, buf, count);
+
+	} else {
+		printk("Invalid Flag\n");
+		spin_unlock(&(rbKprobe_devp->spinlockDevice));
+		return -1;
+
+	}
+
+
 	// TODO: Test count
-	printk("Original Count = %zu\n", count);
+	//printk("Original Count = %zu\n", count);
 	// subtract one because of the strlen)+1 parameter from userspace
 	
 	// UNLOCK
-	spin_unlock(&(DriverRB_PROBE_devp->spinlockDevice));
+	spin_unlock(&(rbKprobe_devp->spinlockDevice));
 	return 0;
 }
 
@@ -149,22 +388,24 @@ ssize_t DriverRB_PROBE_driver_write(struct file *file, const char *buf,
 
 
 /*
- * Read to DriverRB_PROBE driver
+ * Read to rbKprobe driver
  */
-ssize_t DriverRB_PROBE_driver_read(struct file *file, char *buf,
+ssize_t rbKprobe_driver_read(struct file *file, char *buf,
            size_t count, loff_t *ppos)
 {
 	// TODO: Write object back to user
 	int bytes_read = 0;
-	struct DriverRB_PROBE_dev *DriverRB_PROBE_devp = file->private_data;
+	struct rbKprobe_dev *rbKprobe_devp = file->private_data;
 	
 	// LOCK (in case someone wants to remove driver)
-	spin_lock(&(DriverRB_PROBE_devp->spinlockDevice));
+	spin_lock(&(rbKprobe_devp->spinlockDevice));
 	printk("COUNT READ = %zu", count);
+
+	// find the kprobe to read back
 
 
 	// UNLOCK
-	spin_unlock(&(DriverRB_PROBE_devp->spinlockDevice));
+	spin_unlock(&(rbKprobe_devp->spinlockDevice));
 	// Most read functions return the number of bytes put into the buffer
 	return bytes_read;
 
@@ -173,21 +414,21 @@ ssize_t DriverRB_PROBE_driver_read(struct file *file, char *buf,
 
 
 /* File operations structure. Defined in linux/fs.h */
-static struct file_operations DriverRB_PROBE_fops = {
+static struct file_operations rbKprobe_fops = {
     .owner		= THIS_MODULE,           /* Owner */
-    .open		= DriverRB_PROBE_driver_open,        /* Open method */
-    .release	= DriverRB_PROBE_driver_release,     /* Release method */
-    .write		= DriverRB_PROBE_driver_write,       /* Write method */
-    .read		= DriverRB_PROBE_driver_read,        /* Read method */
+    .open		= rbKprobe_driver_open,        /* Open method */
+    .release	= rbKprobe_driver_release,     /* Release method */
+    .write		= rbKprobe_driver_write,       /* Write method */
+    .read		= rbKprobe_driver_read,        /* Read method */
 };
 /*
-struct DriverRB_PROBE_dev {
+struct rbKprobe_dev {
 	struct cdev cdev;               
 	char name[20];                  
 	char in_string[256];			
 	int current_write_pointer;
 	struct rb_root mytree;
-} *DriverRB_PROBE_devp;
+} *rbKprobe_devp;
 
 
 */
@@ -196,55 +437,59 @@ struct DriverRB_PROBE_dev {
 /*
  * Driver Initialization
  */
-int __init DriverRB_PROBE_driver_init(void)
+int __init rbKprobe_driver_init(void)
 {
 	/* TODO: Create two devices!!!!!!!!!!!! */
 	int ret;
 	int time_since_boot;
 
 	/* Request dynamic allocation of a device major number */
-	if (alloc_chrdev_region(&DriverRB_PROBE_dev_number, 0, 1, DEVICE_NAME) < 0) {
+	if (alloc_chrdev_region(&rbKprobe_dev_number, 0, 1, DEVICE_NAME) < 0) {
 			printk(KERN_DEBUG "Can't register device\n"); return -1;
 	}
 
 	/* Populate sysfs entries */
-	DriverRB_PROBE_dev_class = class_create(THIS_MODULE, DEVICE_NAME);
+	rbKprobe_dev_class = class_create(THIS_MODULE, DEVICE_NAME);
 
-	if(IS_ERR(DriverRB_PROBE_dev_class)) {
+	if(IS_ERR(rbKprobe_dev_class)) {
 		// TODO: Add unregister_chrdev_region
 		printk("class_create(...) ERROR\n");
 		/* Release the major number */
-	    unregister_chrdev_region((DriverRB_PROBE_dev_number), 1);
-		return(PTR_ERR(DriverRB_PROBE_dev_class));
+	    unregister_chrdev_region((rbKprobe_dev_number), 1);
+		return(PTR_ERR(rbKprobe_dev_class));
 	}
 
 	/* Allocate memory for the per-device structure */
-	DriverRB_PROBE_devp = kmalloc(sizeof(struct DriverRB_PROBE_dev), GFP_KERNEL);
+	rbKprobe_devp = kmalloc(sizeof(struct rbKprobe_dev), GFP_KERNEL);
 		
-	if (!DriverRB_PROBE_devp) {
+	if (!rbKprobe_devp) {
 		printk("Bad Kmalloc\n"); return -ENOMEM;
 	}
 
 	// Initialize lock
-	spin_lock_init(&(DriverRB_PROBE_devp->spinlockDevice));
+	spin_lock_init(&(rbKprobe_devp->spinlockDevice));
+
+	// Initialize linked list
+	rbKprobe_devp->head.next = NULL;
+
 
 	// set default read order value (can be changed with ioctl)
-	DriverRB_PROBE_devp->readOrderDevice = 0;
+	rbKprobe_devp->readOrderDevice = 0;
 
 	/* Request I/O region */
-	sprintf(DriverRB_PROBE_devp->name, DEVICE_NAME);
+	sprintf(rbKprobe_devp->name, DEVICE_NAME);
 
 	/* Connect the file operations with the cdev */
-	cdev_init(&DriverRB_PROBE_devp->cdev, &DriverRB_PROBE_fops);
-	DriverRB_PROBE_devp->cdev.owner = THIS_MODULE;
+	cdev_init(&rbKprobe_devp->cdev, &rbKprobe_fops);
+	rbKprobe_devp->cdev.owner = THIS_MODULE;
 
-	memset(DriverRB_PROBE_devp->in_string, 0, 256);
+	memset(rbKprobe_devp->in_string, 0, 256);
 
 	// Initialize rb_tree root
-	DriverRB_PROBE_devp->mytree = RB_ROOT;
+	rbKprobe_devp->mytree = RB_ROOT;
 
 	/* Connect the major/minor number to the cdev */
-	ret = cdev_add(&DriverRB_PROBE_devp->cdev, (DriverRB_PROBE_dev_number), 1);
+	ret = cdev_add(&rbKprobe_devp->cdev, (rbKprobe_dev_number), 1);
 
 	if (ret) {
 		printk("Bad cdev\n");
@@ -252,50 +497,57 @@ int __init DriverRB_PROBE_driver_init(void)
 	}
 
 	/* Send uevents to udev, so it'll create /dev nodes */
-	DriverRB_PROBE_dev_device = device_create(DriverRB_PROBE_dev_class, NULL, MKDEV(MAJOR(DriverRB_PROBE_dev_number), 0), NULL, DEVICE_NAME);
+	rbKprobe_dev_device = device_create(rbKprobe_dev_class, NULL, MKDEV(MAJOR(rbKprobe_dev_number), 0), NULL, DEVICE_NAME);
 	
-	if(IS_ERR(DriverRB_PROBE_dev_device)) {
-		class_destroy(DriverRB_PROBE_dev_class);
+	if(IS_ERR(rbKprobe_dev_device)) {
+		class_destroy(rbKprobe_dev_class);
 		// TODO: add unregister_chrdev_region
 		/* Release the major number */
-	    unregister_chrdev_region((DriverRB_PROBE_dev_number), 1);
+	    unregister_chrdev_region((rbKprobe_dev_number), 1);
 		printk("device_create(...) ERROR\n");
-		return PTR_ERR(DriverRB_PROBE_dev_device);
+		return PTR_ERR(rbKprobe_dev_device);
 	}
 
 	//since on some systems jiffies is a very huge uninitialized value at boot and saved.
 	time_since_boot=(jiffies-INITIAL_JIFFIES)/HZ; 
-	sprintf(DriverRB_PROBE_devp->in_string, "Hi %s, this machine has been on for %d seconds", user_name, time_since_boot);
+	sprintf(rbKprobe_devp->in_string, "Hi %s, this machine has been on for %d seconds", user_name, time_since_boot);
 	
-	DriverRB_PROBE_devp->current_write_pointer = 0;
+	rbKprobe_devp->current_write_pointer = 0;
 	// Initialize root to be
-	//DriverRB_PROBE_devp->mytree = NULL;
+	//rbKprobe_devp->mytree = NULL;
 
-	printk("DriverRB_PROBE driver initialized.\n'%s'\n",DriverRB_PROBE_devp->in_string);
-	//printk("DriverRB_PROBE driver initialized.\n'%s'\n",DriverRB_PROBE_devp->mytree);
+	printk("rbKprobe driver initialized.\n'%s'\n",rbKprobe_devp->in_string);
+	//printk("rbKprobe driver initialized.\n'%s'\n",rbKprobe_devp->mytree);
 
 	return 0;
 }
 /* Driver Exit */
-void __exit DriverRB_PROBE_driver_exit(void)
+void __exit rbKprobe_driver_exit(void)
 {
-	// device_remove_file(DriverRB_PROBE_dev_device, &dev_attr_xxx);
+	// device_remove_file(rbKprobe_dev_device, &dev_attr_xxx);
 	/* Release the major number */
-	unregister_chrdev_region((DriverRB_PROBE_dev_number), 1);
+	unregister_chrdev_region((rbKprobe_dev_number), 1);
+
+
+
+	// TODO deregister and free all kprobe nodes in list
+
+	// unregister kprobe
+	unregister_kprobe(&(rbKprobe_devp->kp));
 
 	/* Destroy device */
-	device_destroy (DriverRB_PROBE_dev_class, MKDEV(MAJOR(DriverRB_PROBE_dev_number), 0));
-	cdev_del(&DriverRB_PROBE_devp->cdev);
-	kfree(DriverRB_PROBE_devp);
+	device_destroy (rbKprobe_dev_class, MKDEV(MAJOR(rbKprobe_dev_number), 0));
+	cdev_del(&rbKprobe_devp->cdev);
+	kfree(rbKprobe_devp);
 	
 	/* Destroy driver_class */
-	class_destroy(DriverRB_PROBE_dev_class);
+	class_destroy(rbKprobe_dev_class);
 
-	printk("DriverRB_PROBE driver removed.\n");
+	printk("rbKprobe driver removed.\n");
 }
 
-module_init(DriverRB_PROBE_driver_init);
-module_exit(DriverRB_PROBE_driver_exit);
+module_init(rbKprobe_driver_init);
+module_exit(rbKprobe_driver_exit);
 MODULE_LICENSE("GPL v2");
 
 

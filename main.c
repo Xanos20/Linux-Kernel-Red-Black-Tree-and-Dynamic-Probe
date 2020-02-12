@@ -72,7 +72,7 @@ int main(int argc, char **argv)
 			printf("Can not write to the device file.\n");		
 			return 0;
 		}
-		*/	
+	*/	
 	
 	printf("READ\n");
 	res = read(fd, buff, sizeof(struct pair));

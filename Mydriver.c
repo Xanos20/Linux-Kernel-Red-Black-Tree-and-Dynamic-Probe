@@ -573,7 +573,7 @@ ssize_t rbtree_driver_read(struct file *file, char *buf,
 		if(rbtree_devp->treeCursor == NULL) {
 			// treeCursor has not been used yet
 			printk("Empty Tree\n");
-
+			cursorHasBeenUsed = false;
 			rbtree_devp->treeCursor = rb_last(&(rbtree_devp->mytree));
 		}
 		if(rb_last(&(rbtree_devp->mytree)) == NULL) {
@@ -583,13 +583,18 @@ ssize_t rbtree_driver_read(struct file *file, char *buf,
 		}
 		// test the node to read (the one after the current node we are on) to see if it is null
 		struct rb_node *testPrev = rb_prev(rbtree_devp->treeCursor);
-		if(testPrev == NULL) {
+		if(testPrev == NULL && cursorHasBeenUsed == true) {
 			printk("The prev node is empty.\n");
 			spin_unlock(&(rbtree_devp->spinlockDevice));
 			return -1;
 		} else {
 			// update cursor
-			rbtree_devp->treeCursor = rb_prev(rbtree_devp->treeCursor);
+			if(cursorHasBeenUsed == true) {
+				rbtree_devp->treeCursor = rb_prev(rbtree_devp->treeCursor);
+			} else {
+				cursorHasBeenUsed = true;
+			}
+			//rbtree_devp->treeCursor = rb_prev(rbtree_devp->treeCursor);
 			// send data to user
 			struct rb_node *node = rbtree_devp->treeCursor;
 			sendToUser.key = rb_entry(node, struct rb_object, node)->key;

@@ -5,7 +5,7 @@
 
 
 
-obj-m = Mydriver.o
+obj-m = Driver_RB_Probe.o
 all:
 	make -C /lib/modules/$(shell uname -r)/build/ M=$(PWD) modules
 clean:
