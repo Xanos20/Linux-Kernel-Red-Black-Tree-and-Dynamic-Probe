@@ -72,7 +72,15 @@ struct rbtree_dev {
 } *rbtree_devp;
 
 
-
+struct rbtree_dev_second {
+	struct cdev cdev;               /* The cdev structure */
+	char name[20];                  /* Name of device*/
+	char in_string[256];
+	struct rb_node* treeCursor;
+    struct rb_root mytree;
+    spinlock_t spinlockDevice;
+    int readOrderDevice;
+} *rbtree_devp_second;
 /*
 struct device_metadata {
 	static dev_t rbtree_dev_number;      
@@ -92,23 +100,12 @@ static dev_t rbtree_dev_number;
 struct class *rbtree_dev_class;           
 static struct device *rbtree_dev_device;
 
-
-static dev_t rbtree_dev_number1;      
-struct class rbtree_dev_class1;           
-static struct device *rbtree_dev_device1;
-
-
-/*
-First Tree
-*/
+static dev_t rbtree_dev_number_second;      
+struct class *rbtree_dev_class_second;           
+static struct device *rbtree_dev_device_second;
 
 
-/*
-Second Tree
-*/
-static dev_t rbtree_dev_number_2nd_tree;      // Allotted device number /
-struct class *rbtree_dev_class_2nd_tree;          // Tie with the device model /
-static struct device *rbtree_dev_device_2nd_tree;
+
 
 
 static char *user_name = "Kamal Nadesan";  /* the default user name, can be replaced if a new name is attached in insmod command */
@@ -229,7 +226,7 @@ int my_insert(struct rb_root *root, struct rb_object *nodeToInsert) {
       return 0;
 }
 // For kprobe module
-EXPORT_SYMBOL(my_insert);
+//EXPORT_SYMBOL(my_insert);
 
 
 /*
@@ -247,12 +244,16 @@ ssize_t rbtree_driver_write(struct file *file, const char *buf,
            size_t count, loff_t *ppos)
 {
 	// User should provide rb_object
-	printk("DRDRIVER WRITE AROUND = %p\n", (void*) rbtree_driver_write);
+	//printk("DRDRIVER WRITE AROUND = %p\n", (void*) rbtree_driver_write);
 	//printk("Write pid = %d\n", current->pid);
-	struct rbtree_dev *rbtree_devp = file->private_data;
+	struct file* f = file;
+
 
 	// LOCK
 	spin_lock(&(rbtree_devp->spinlockDevice));
+	struct rbtree_dev *rbtree_devp = file->private_data;
+
+	
 	// TODO: Test count
 	printk("Original Count = %zu\n", count);
 
@@ -293,7 +294,9 @@ ssize_t rbtree_driver_write(struct file *file, const char *buf,
 		// Insert new node or replace data field of existing node in tree
 		struct rb_object* nodeToInsert = kmalloc(sizeof(struct rb_object), GFP_KERNEL);
 		if (!nodeToInsert) {
-			printk("Bad Kmalloc\n"); 
+			printk("Bad Kmalloc\n");
+
+			// UNLOCK 
 			spin_unlock(&(rbtree_devp->spinlockDevice));
 			return -ENOMEM;
 		}
@@ -335,7 +338,7 @@ ssize_t rbtree_driver_write(struct file *file, const char *buf,
 	return 0;
 }
 // For kprobe module
-EXPORT_SYMBOL(rbtree_driver_write);
+//EXPORT_SYMBOL(rbtree_driver_write);
 
 
 /*
@@ -353,14 +356,17 @@ Otherwise, -1 is returned and errno is set to EINVAL.
 
 */
 // TODO: Use unlocked ioctl
-long __attribute__((regparam(3))) rbtree_driver_unlocked_ioctl(struct file *file, unsigned int ioctl_num, unsigned long ioctl_param) {
+long rbtree_driver_unlocked_ioctl(struct file *file, unsigned int ioctl_num, unsigned long ioctl_param) {
 	// TODO: local read order
+
+	// LOCK
+	spin_lock(&(rbtree_devp->spinlockDevice));
+
 	struct rbtree_dev *rbtree_devp = file->private_data;
 	printk("IN Unlocked_IOTCL\n");
 	printk("ioctl number = %d\n", ioctl_num);
 
-	// LOCK
-	spin_lock(&(rbtree_devp->spinlockDevice));
+
 
 	if(ioctl_num == 0) {
 		rbtree_devp->readOrderDevice = 0;
@@ -405,19 +411,36 @@ to retrieve the next object in either ascending or descending order (to be set b
 } rb_keydata_t;
 
 */
-ssize_t __attribute__((regparam(3))) rbtree_driver_read(struct file *file, char *buf,
+ssize_t rbtree_driver_read(struct file *file, char *buf,
            size_t count, loff_t *ppos)
 {
 	// TODO: Write object back to user
 	// TODO: add cursor to where you are in the tree
-	int bytes_read = 0;
-	struct rbtree_dev *rbtree_devp = file->private_data;
-	
-	// LOCK (in case someone wants to remove driver)
+
+	// This file pointer is for referencing the x86 code for the kprobe pre-handler
+	volatile struct file* f = file;
+
+	// LOCK
 	spin_lock(&(rbtree_devp->spinlockDevice));
+
+	
+	struct rbtree_dev *rbtree_devp = file->private_data;
+
+
+	// for debugging x86
+	volatile int i = 0;
+	i = i + 1;
+
+	// bytes read back to user
+	int bytes_read = 0;
+	
+	
 
 	if(count != 8) {
 		// copies data to user in 8 byte increments
+
+		// UNLOCK
+		spin_unlock(&(rbtree_devp->spinlockDevice));
 		return -1;
 	}
 
@@ -440,8 +463,10 @@ ssize_t __attribute__((regparam(3))) rbtree_driver_read(struct file *file, char 
 		
 		if(rb_first(&(rbtree_devp->mytree)) == NULL) {
 			// tree is empty
+
+			// UNLOCK
 			spin_unlock(&(rbtree_devp->spinlockDevice));
-			return -1;
+			return -EINVAL;
 		}
 
 		// update cursor 
@@ -449,6 +474,8 @@ ssize_t __attribute__((regparam(3))) rbtree_driver_read(struct file *file, char 
 		struct rb_node *testNext = rb_next(rbtree_devp->treeCursor);
 		if(testNext == NULL && cursorHasBeenUsed == true) {
 			printk("The next node is empty.\n");
+
+			// UNLOCK
 			spin_unlock(&(rbtree_devp->spinlockDevice));
 			return -1;
 		} else {
@@ -463,6 +490,10 @@ ssize_t __attribute__((regparam(3))) rbtree_driver_read(struct file *file, char 
 			struct rb_node *node = rbtree_devp->treeCursor;
 			if(rbtree_devp->treeCursor == NULL) {
 				printk("Cursur Is NULL\n");
+
+				// UNLOCK
+				spin_unlock(&(rbtree_devp->spinlockDevice));
+				return -1;
 			}
 
 			sendToUser.key = rb_entry(node, struct rb_object, node)->key;
@@ -480,7 +511,10 @@ ssize_t __attribute__((regparam(3))) rbtree_driver_read(struct file *file, char 
 			// Update Variables
 			//count = count - sizeof(struct keydata_to_read);
 			bytes_read = bytes_read + sizeof(struct keydata_to_read);
+
+			// UNLOCK
 			spin_unlock(&(rbtree_devp->spinlockDevice));
+
 			// Most read functions return the number of bytes put into the buffer
 			return bytes_read;
 		}
@@ -497,15 +531,19 @@ ssize_t __attribute__((regparam(3))) rbtree_driver_read(struct file *file, char 
 		}
 		if(rb_last(&(rbtree_devp->mytree)) == NULL) {
 			// tree is empty
+
+			// UNLOCK
 			spin_unlock(&(rbtree_devp->spinlockDevice));
-			return -1;
+			return -EINVAL;
 		}
 		// test the node to read (the one after the current node we are on) to see if it is null
 		struct rb_node *testPrev = rb_prev(rbtree_devp->treeCursor);
 		if(testPrev == NULL && cursorHasBeenUsed == true) {
 			printk("The prev node is empty.\n");
+
+			// UNLOCK
 			spin_unlock(&(rbtree_devp->spinlockDevice));
-			return -1;
+			return -EINVAL;
 		} else {
 			// update cursor
 			if(cursorHasBeenUsed == true) {
@@ -526,12 +564,16 @@ ssize_t __attribute__((regparam(3))) rbtree_driver_read(struct file *file, char 
     		int errChkKeyData = copy_to_user(buf, &sendToUser, sizeof(struct keydata_to_read));
 			if(errChkKeyData == -EFAULT) {
 				printk("copy_to_user Error\n");
+
+				// UNLOCK
 				spin_unlock(&(rbtree_devp->spinlockDevice));
 				return PTR_ERR(node);
 			}
 			// Update Variables
 			//count = count - sizeof(struct keydata_to_read);
 			bytes_read = bytes_read + sizeof(struct keydata_to_read);
+
+			// UNLOCK
 			spin_unlock(&(rbtree_devp->spinlockDevice));
 			// Most read functions return the number of bytes put into the buffer
 			return bytes_read;
@@ -539,13 +581,15 @@ ssize_t __attribute__((regparam(3))) rbtree_driver_read(struct file *file, char 
 	} 
 	else {
 		printk("ioctl Error\n");
+
+		// UNLOCK
 		spin_unlock(&(rbtree_devp->spinlockDevice));
 		return -1;
 
 	}
 }
 // For kprobe module
-EXPORT_SYMBOL(rbtree_driver_read);
+//EXPORT_SYMBOL(rbtree_driver_read);
 
 
 
@@ -570,7 +614,7 @@ static struct file_operations rbtree_fops = {
 
 
 /* File operations structure. Defined in linux/fs.h */
-static struct file_operations rbtree_first_fops = {
+static struct file_operations rbtree_fops_second = {
     .owner		= THIS_MODULE,           /* Owner */
     .open		= rbtree_driver_open,        /* Open method */
     .release	= rbtree_driver_release,     /* Release method */
@@ -578,110 +622,6 @@ static struct file_operations rbtree_first_fops = {
     .read		= rbtree_driver_read,        /* Read method */
     .unlocked_ioctl      = rbtree_driver_unlocked_ioctl
 };
-
-
-/*
-rbtree_dev_class_1st_tree
-Initialize first rb_tree rbt530_dev1
-*/
-
-
-
-
-/*
-
-int first_rbtree_driver_init(void)
-{
-	// TODO: Create two devices!!!!!!!!!!!! /
-	int ret;
-	int time_since_boot;
-
-	// Initialize global semaphore to prevent race conditions with the write method
-	//void init_MUTEX(&SEM);
-	//spin_lock_init(&(rbtree_devp->spinlockDevice));
-
-	// set default read_order value
-	//READ_ORDER = 0;
-
-	// Request dynamic allocation of a device major number /
-	if (alloc_chrdev_region(&rbtree_dev_number1, 0, 1, DEVICE_NAME_1) < 0) {
-			printk(KERN_DEBUG "Can't register device\n"); return -1;
-	}
-
-	// Populate sysfs entries /
-	rbtree_dev_class1 = class_create(THIS_MODULE, DEVICE_NAME_1);
-
-	if(IS_ERR(rbtree_dev_class1)) {
-		// TODO: Add unregister_chrdev_region
-		printk("class_create(...) ERROR\n");
-		// Release the major number /
-	    unregister_chrdev_region((rbtree_dev_number1), 1);
-		return(PTR_ERR(rbtree_dev_class1));
-	}
-
-	// Allocate memory for the per-device structure /
-	rbtree_devp_first = kmalloc(sizeof(struct rbtree_dev), GFP_KERNEL);
-		
-	if (!rbtree_devp_first) {
-		printk("Bad Kmalloc\n"); return -ENOMEM;
-	}
-
-	spin_lock_init(&(rbtree_devp_first->spinlockDevice));
-
-	// set default read order value (can be changed with ioctl)
-	rbtree_devp_first->readOrderDevice = 0;
-
-	// Request I/O region /
-	sprintf(rbtree_devp_first->name, DEVICE_NAME_1);
-
-	// Connect the file operations with the cdev/
-	cdev_init(&rbtree_devp_first->cdev, &rbtree_first_fops);
-	rbtree_devp_first->cdev.owner = THIS_MODULE;
-
-	memset(rbtree_devp_first->in_string, 0, 256);
-
-	// Initialize rb_tree root
-	rbtree_devp_first->mytree = RB_ROOT;
-
-	// Initialize treeCursor to be the first element in
-	rbtree_devp_first->treeCursor = NULL;
-
-	// Connect the major/minor number to the cdev /
-	ret = cdev_add(&rbtree_devp_first->cdev, (rbtree_dev_number1), 1);
-
-	if (ret) {
-		printk("Bad cdev\n");
-		return ret;
-	}
-
-	// Send uevents to udev, so it'll create /dev nodes /
-	rbtree_dev_device1 = device_create(rbtree_dev_class1, NULL, MKDEV(MAJOR(rbtree_dev_number1), 0), NULL, DEVICE_NAME_1);
-	
-	if(IS_ERR(rbtree_dev_device1)) {
-		class_destroy(rbtree_dev_class1);
-		// TODO: add unregister_chrdev_region
-		// Release the major number /
-	    unregister_chrdev_region((rbtree_dev_number1), 1);
-		printk("device_create(...) ERROR\n");
-		return PTR_ERR(rbtree_dev_device1);
-	}
-
-	//since on some systems jiffies is a very huge uninitialized value at boot and saved.
-	time_since_boot=(jiffies-INITIAL_JIFFIES)/HZ; 
-	sprintf(rbtree_devp_first->in_string, "Hi %s, this machine has been on for %d seconds", user_name, time_since_boot);
-	
-	// Initialize root to be
-	//rbtree_devp->mytree = NULL;
-
-	printk("rbtree driver initialized.\n'%s'\n",rbtree_devp_first->in_string);
-	//printk("rbtree driver initialized.\n'%s'\n",rbtree_devp->mytree);
-
-	return 0;
-}
-
-*/
-
-
 
 
 
@@ -731,7 +671,7 @@ int __init rbtree_driver_init(void)
 	spin_lock_init(&(rbtree_devp->spinlockDevice));
 
 	// set default read order value (can be changed with ioctl)
-	rbtree_devp->readOrderDevice = 0;
+	rbtree_devp->readOrderDevice = 1;
 
 	// Request I/O region /
 	sprintf(rbtree_devp->name, DEVICE_NAME);
@@ -748,7 +688,7 @@ int __init rbtree_driver_init(void)
 	// Initialize treeCursor to be the first element in
 	rbtree_devp->treeCursor = NULL;
 
-	/* Connect the major/minor number to the cdev */
+	// Connect the major/minor number to the cdev /
 	ret = cdev_add(&rbtree_devp->cdev, (rbtree_dev_number), 1);
 
 	if (ret) {
@@ -756,13 +696,13 @@ int __init rbtree_driver_init(void)
 		return ret;
 	}
 
-	/* Send uevents to udev, so it'll create /dev nodes */
+	// Send uevents to udev, so it'll create /dev nodes /
 	rbtree_dev_device = device_create(rbtree_dev_class, NULL, MKDEV(MAJOR(rbtree_dev_number), 0), NULL, DEVICE_NAME);
 	
 	if(IS_ERR(rbtree_dev_device)) {
 		class_destroy(rbtree_dev_class);
 		// TODO: add unregister_chrdev_region
-		/* Release the major number */
+		// Release the major number /
 	    unregister_chrdev_region((rbtree_dev_number), 1);
 		printk("device_create(...) ERROR\n");
 		return PTR_ERR(rbtree_dev_device);
@@ -778,12 +718,96 @@ int __init rbtree_driver_init(void)
 	printk("rbtree driver initialized.\n'%s'\n",rbtree_devp->in_string);
 	//printk("rbtree driver initialized.\n'%s'\n",rbtree_devp->mytree);
 
+
+
+	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	/*
+	printk("Initialize SECOND RB_TREE\n");
+
+	if (alloc_chrdev_region(&rbtree_dev_number_second, 0, 1, DEVICE_NAME_2) < 0) {
+			printk(KERN_DEBUG "Can't register device\n"); return -1;
+	}
+
+	// Populate sysfs entries /
+	rbtree_dev_class_second = class_create(THIS_MODULE, DEVICE_NAME_2);
+
+	if(IS_ERR(rbtree_dev_class_second)) {
+		// TODO: Add unregister_chrdev_region
+		printk("class_create(...) ERROR\n");
+		// Release the major number /
+	    unregister_chrdev_region((rbtree_dev_number_second), 1);
+		return(PTR_ERR(rbtree_dev_class_second));
+	}
+
+	// Allocate memory for the per-device structure /
+	rbtree_devp_second = kmalloc(sizeof(struct rbtree_dev), GFP_KERNEL);
+
+	memset(rbtree_devp_second, 0, sizeof(struct rbtree_dev));
+
+		
+	if (!rbtree_devp_second) {
+		printk("Bad Kmalloc\n"); return -ENOMEM;
+	}
+
+	spin_lock_init(&(rbtree_devp_second->spinlockDevice));
+
+	// set default read order value (can be changed with ioctl)
+	rbtree_devp_second->readOrderDevice = 1;
+
+	// Request I/O region /
+	sprintf(rbtree_devp_second->name, DEVICE_NAME_2);
+
+	// Connect the file operations with the cdev/
+	cdev_init(&rbtree_devp_second->cdev, &rbtree_fops_second);
+	rbtree_devp_second->cdev.owner = THIS_MODULE;
+
+	memset(rbtree_devp_second->in_string, 0, 256);
+
+	// Initialize rb_tree root
+	rbtree_devp_second->mytree = RB_ROOT;
+
+	// Initialize treeCursor to be the first element in
+	rbtree_devp_second->treeCursor = NULL;
+
+	// Connect the major/minor number to the cdev /
+	ret = cdev_add(&rbtree_devp_second->cdev, (rbtree_dev_number_second), 1);
+
+	if (ret) {
+		printk("Bad cdev\n");
+		return ret;
+	}
+
+	// Send uevents to udev, so it'll create /dev nodes /
+	rbtree_dev_device_second = device_create(rbtree_dev_class_second, NULL, MKDEV(MAJOR(rbtree_dev_number_second), 0), NULL, DEVICE_NAME_2);
+	
+	if(IS_ERR(rbtree_dev_device_second)) {
+		class_destroy(rbtree_dev_class_second);
+		// TODO: add unregister_chrdev_region
+		// Release the major number /
+	    unregister_chrdev_region((rbtree_dev_number_second), 1);
+		printk("device_create(...) ERROR\n");
+		return PTR_ERR(rbtree_dev_device_second);
+	}
+
+	//since on some systems jiffies is a very huge uninitialized value at boot and saved.
+	time_since_boot=(jiffies-INITIAL_JIFFIES)/HZ; 
+	sprintf(rbtree_devp_second->in_string, "Hi %s, this machine has been on for %d seconds", user_name, time_since_boot);
+	
+	// Initialize root to be
+	//rbtree_devp->mytree = NULL;
+
+	printk("rbtree driver SECOND initialized.\n'%s'\n",rbtree_devp_second->in_string);
+	*/
 	return 0;
 }
+
+
 /* Driver Exit */
 void __exit rbtree_driver_exit(void)
 {
 	// device_remove_file(rbtree_dev_device, &dev_attr_xxx);
+
+	printk("release first tree\n");
 	/* Release the major number */
 	unregister_chrdev_region((rbtree_dev_number), 1);
 
@@ -795,7 +819,24 @@ void __exit rbtree_driver_exit(void)
 	/* Destroy driver_class */
 	class_destroy(rbtree_dev_class);
 
+	//printk("rbtree driver removed.\n");
+
+	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	printk("remove second tree\n");
+	unregister_chrdev_region((rbtree_dev_number_second), 1);
+
+	/* Destroy device */
+	device_destroy (rbtree_dev_class_second, MKDEV(MAJOR(rbtree_dev_number_second), 0));
+	cdev_del(&rbtree_devp_second->cdev);
+	kfree(rbtree_devp_second);
+	
+	/* Destroy driver_class */
+	class_destroy(rbtree_dev_class_second);
+
 	printk("rbtree driver removed.\n");
+
+	return;
+
 }
 
 module_init(rbtree_driver_init);

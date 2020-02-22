@@ -62,7 +62,7 @@ https://www.infradead.org/~mchehab/kernel_docs/unsorted/rbKprobe.html
 */
 typedef struct retrieveFromUser {
 	int flag;
-	unsigned long addr;
+	unsigned int addr;
 
 } retrieveFromUser_t;
 
@@ -103,7 +103,7 @@ struct rbtree_dev {
 
 // the kprobe buffer
 typedef struct probe_data {
-	void* addr;
+	unsigned long addr;
 	pid_t pid;
 	unsigned long long tsc;
 	struct path_to_cursor path;
@@ -130,6 +130,7 @@ struct rbKprobe_dev {
     spinlock_t spinlockDevice;
     int readOrderDevice;
     struct kprobe kp;
+    struct kprobe kp_read;
     //struct kprobeHead head;
    // struct kprobeNode* curr;
     struct list_head head;
@@ -214,50 +215,15 @@ int rbKprobe_driver_release(struct inode *inode, struct file *file)
 }
 
 
+int Fault_Handler(struct kprobe* probe, struct pt_regs* regs, int trapnr) {
+	return 0;
+}
 
-
-
-/*
- * Write to rbKprobe driver
- */
-
-/*
-write: 
-if the input object of rb_object_t has a non-zero data field, a node is created and added to 
-the rbt530. 
-If an object with the same key already exists in the tree, it should be replaced with the 
-new one. If the data field is 0, any existing object with the input key is deleted from the table.
-
-*/
-// user just passes in struct with key and vaue
 
 void Post_Handler(struct kprobe *probe, struct pt_regs *regs, unsigned long flags) {
 	printk("Post_Handler\n");
 	return;
 }
-
-
-
-
-
-/*
-struct path_to_cursor {
-	int pathLength;
-	struct keydata path[10];
-};
-*/
-
-
-/*
- the address of the kprobe, 
- the pid of the running process that hits the probe,
- time stamp (x86 TSC), 
- and all rb_object objects 
-*/
-
-
-
-
 
 
 
@@ -270,6 +236,14 @@ static __always_inline unsigned  long long get_native_read_tsc(void) {
 }
 
 
+/*
+RETURNS:
+
+struct path_to_cursor {
+	int pathLength;
+	struct keydata path[10];
+};
+*/
 struct path_to_cursor generate_path(struct rb_root *root, int key) {
 
   	struct rb_node *node = root->rb_node;
@@ -292,15 +266,19 @@ struct path_to_cursor generate_path(struct rb_root *root, int key) {
   		// Store current node in the path
   		PathToCursor.path[PathToCursor.pathLength ].key = curr->key;
 		PathToCursor.path[PathToCursor.pathLength ].data = curr->data;
-		// Increment Counter
-		PathToCursor.pathLength += 1;
 
 		// Transverse the rb tree
 		if(key < curr->key) {
 			node = node->rb_left;
+			// Increment Counter snce we moved to a new node
+			PathToCursor.pathLength += 1;
+
 		} 
 		else if(key > curr->key) {
         	node = node->rb_right;
+        	// Increment Counter snce we moved to a new node
+        	PathToCursor.pathLength += 1;
+
         } 
         else {
         	printk("Found Node\n");
@@ -315,9 +293,17 @@ struct path_to_cursor generate_path(struct rb_root *root, int key) {
 
 int Pre_Handler(struct kprobe *probe, struct pt_regs *regs) {
 	//struct probe_data toReturnToRead;
+	printk("PREHANDLER\n");
 
 	// Retrieve and store the corresponding address of the kprobe
-	rbKprobe_devp->probe_buffer.addr = (void*) probe->addr;
+	//rbKprobe_devp->probe_buffer.addr = (void*) probe->addr;
+	unsigned long theAddr = (unsigned long) probe->addr;
+
+	printk("theAddr = %lx\n", theAddr);
+	rbKprobe_devp->probe_buffer.addr = theAddr;
+
+
+
 	//kprobe_opcode_t* addrToReturn = (void*) probe->addr;
 
 	// Get Time Stamp Counter
@@ -334,103 +320,47 @@ int Pre_Handler(struct kprobe *probe, struct pt_regs *regs) {
 	printk("Pid = %d\n", processID);
 
 	// TODO: Get all rb objects from the file pointer should be in the eax register
-	struct file *file = (struct file*) regs->ax;
+	//struct file *file = (struct file*) regs->ax;
+
+	// for 64 bit
+	struct file *file = (struct file*) regs->di;
 
 	// Get device data of the file
 	struct rbtree_dev *rbtree_devp = file->private_data;
-
+	printk("readOrderDevice = %d\n", rbtree_devp->readOrderDevice);
+	
 	// Get the root of the corresponding rb tree
 	struct rb_root mytree = rbtree_devp->mytree;
 
 	// The current node in the rb tree
 	struct rb_node* node = rbtree_devp->treeCursor;
+	if(node == NULL) {
+		printk("Empty Cursor in Pre-Handler\n");
+		rbKprobe_devp->probe_buffer.path = generate_path(&mytree, -1);
+		printk("Path Length = %d\n", rbKprobe_devp->probe_buffer.path.pathLength);
+
+	} else {
+		struct rb_object *treeCursorKeyDataPair = container_of(node, struct rb_object, node);
+		int key = treeCursorKeyDataPair->key;
+		printk("Current Cursor Key Value Of = %d\n", key);
+		rbKprobe_devp->probe_buffer.path = generate_path(&mytree, key);
+		printk("First Key = %d\n", rbKprobe_devp->probe_buffer.path.path[0].key);
+
+	}
+	/*
 	struct rb_object *treeCursorKeyDataPair = container_of(node, struct rb_object, node);
 	int key = treeCursorKeyDataPair->key;
-
+	/*
 	// generate the path by reading first 10 elements to the path to treeCursor
 	rbKprobe_devp->probe_buffer.path = generate_path(&mytree, key);
+	*/
+
+
 
 	return 0;
 }
 
 
-
-
-/*
-int registerkProbe(struct rbKprobe_dev *rbKprobe_devp, const char *buf, size_t count) {
-
-	// TODO: Buff should not include flag
-
-	if(rbKprobe_devp->head.next == NULL) {
-		// new node
-		rbKprobe_devp->head.next = kmalloc(sizeof(struct kprobeNode), GFP_KERNEL);	
-		if (!(rbKprobe_devp->head.next)) {
-			printk("Bad Kmalloc\n"); return -ENOMEM;
-		}
-
-		// put in new element
-		rbKprobe_devp->head.next->kp.addr = (kprobe_opcode_t*) buf;
-		rbKprobe_devp->head.next->kp.pre_handler = Pre_Hander;
-		// account for next node
-		rbKprobe_devp->head.next->next = NULL;
-		// register kprobe
-		int verifyRegister = register_kprobe(&(rbKprobe_devp->head.next->kp));
-		if(verifyRegister != 0) {
-			printk("kprobe register failed\n");
-			return -1;
-		}
-		return 0;
-	} else {
-		// TODO: append new node to end of list
-		struct kprobeNode* curr = rbKprobe_devp->head.next;
-		while(curr->next != NULL) {
-			// find the end of the list
-			curr = curr->next;
-		}
-
-		// make new node
-		curr->next = kmalloc(sizeof(struct kprobeNode), GFP_KERNEL);
-		if(!(curr->next)) {
-			printk("Bad Kmalloc\n"); return -ENOMEM;
-		}
-		// fill in new node fields
-		curr->next->kp.addr = (kprobe_opcode_t*) buf;
-		curr->next->kp.pre_handler = Pre_Hander;
-		
-		// update next ptr in new node
-		curr->next->next = NULL;
-
-		// register kprobe in new node
-		int verifyRegister = register_kprobe(&(curr->next->kp));
-		if(verifyRegister != 0) {
-			printk("kprobe register failed\n");
-			kfree(curr->next);
-			// dont want use after free
-			curr->next = NULL;
-			return -1;
-		}
-
-		// update size
-		rbKprobe_devp->head.size += 1;
-		return 0;
-	}
-	
-}
-
-
-
-
-
-int deregisterkProbe(struct rbKprobe_dev *rbKprobe_devp, const char *buf, size_t count) {
-
-	// TODO: Buff should not include flag
-
-
-	return 0;
-	
-}
-
-*/
 
 /*
 typedef struct retrieveFromUser {
@@ -439,13 +369,31 @@ typedef struct retrieveFromUser {
 
 } retrieveFromUser_t;
 */
-kprobe_opcode_t* address;
+
+/*
+write: 
+if the input object of rb_object_t has a non-zero data field, a node is created and added to 
+the rbt530. 
+If an object with the same key already exists in the tree, it should be replaced with the 
+new one. If the data field is 0, any existing object with the input key is deleted from the table.
+
+
+typedef struct retrieveFromUser {
+	int flag;
+	unsigned long addr;
+
+} retrieveFromUser_t;
+*/
+// user just passes in struct with key and vaue
+
+
 ssize_t rbKprobe_driver_write(struct file *file, const char *buf,
            size_t count, loff_t *ppos)
 {
 	// User should provide rb_object
 	struct rbKprobe_dev *rbKprobe_devp = file->private_data;
 	printk("RBPROBE WRITE\n");
+	printk("Size of File Pointer = %ld\n", sizeof(struct file*));
 
 	// LOCK
 	spin_lock(&(rbKprobe_devp->spinlockDevice));
@@ -457,135 +405,87 @@ ssize_t rbKprobe_driver_write(struct file *file, const char *buf,
 		printk("Error in Struct From User\n");
 		return -1;
 	}
-	/*
-	
-	int errChkKey = get_user(intermediate.flag, (buf));
-		if(errChkKey == -EFAULT) {
-			printk("Unknown KEY  From Buffer Detected\n");
-			spin_unlock(&(rbKprobe_devp->spinlockDevice));
-			return PTR_ERR(buf);
-		}
-		// add 4 because we want the next int and int has size 4. Adding one is only for chars
-		buf = buf + 4;
-		int errChkData = get_user(intermediate.addr, (buf));
-		if(errChkData == -EFAULT) {
-			printk("Unknown KEY  From Buffer Detected\n");
-			spin_unlock(&(rbKprobe_devp->spinlockDevice));
-			return PTR_ERR(buf);
-		}
-		*/
 
 	printk("Flag = %d\n", intermediate.flag);
-	printk("Addr = %lx\n", intermediate.addr);
-
-
+	printk("Addr = %x\n", intermediate.addr);
 	if((intermediate.flag) == 1) {
-		// put probe on write function in mydriver.ko
 
-		//unsigned long rbDriverWriteAddr = kallsyms_lookup_name("rbtree_driver_write");
-		/*
-		printk("Driver Write Address = %lx\n", rbDriverWriteAddr);
-		if(rbDriverWriteAddr == 0) {
-			printk("Address For Write Not Found\n");
-			spin_unlock(&(rbKprobe_devp->spinlockDevice));
-			return -1;
-		}
-		*/
+		printk("In Write Add Kprobe\n");
 
-		//rbKprobe_devp->kp.addr = (kprobe_opcode_t*) intermediate.addr;
+		//struct kprobe *kp = kmalloc(sizeof(struct kprobe), GFP_ATOMIC);
 
-		// Initialize kprobe struct
-		rbKprobe_devp->kp.addr = (kprobe_opcode_t*) intermediate.addr;
+
+		memset(&(rbKprobe_devp->kp), 0, sizeof(struct kprobe));
+		char *sym_rb_write = "rbtree_driver_write";
+		printk("ADDRESS TO ADD = %lx\n", kallsyms_lookup_name(sym_rb_write));
+		rbKprobe_devp->kp.addr = (kprobe_opcode_t*) kallsyms_lookup_name(sym_rb_write);
+
+		// clear anything out of struct
+		//memset(&(rbKprobe_devp->kp), 0, sizeof(struct kprobe));
+		//rbKprobe_devp->kp.addr = (kprobe_opcode_t*) kallsyms_lookup_name("rbtree_driver_write");
+		//rbKprobe_devp->kp.addr = NULL;
 		rbKprobe_devp->kp.pre_handler = Pre_Handler;
 		rbKprobe_devp->kp.post_handler = Post_Handler;
-
-		int verifyProbeRegister = register_kprobe(&(rbKprobe_devp->kp));
-		if(verifyProbeRegister != 0) {
-			printk("Kprobe was not registered\n");
-			spin_unlock(&(rbKprobe_devp->spinlockDevice));
-			return -1;
-		}
-
-	} else if((intermediate.flag) == 0) {
-		// remove correspnding kprobe by address
-
-		unregister_kprobe(&(rbKprobe_devp->kp));
-
-	} else {
-		printk("Invalid Flag\n");
-		spin_unlock(&(rbKprobe_devp->spinlockDevice));
-		return -1;
-	}
-	/*
-
-	// buf will have the memory address
-	if(flag == 1) {
-		// add new kprobe node to list
+		//rbKprobe_devp->kp.symbol_name = "rbtree_driver_write";
+		//rbKprobe_devp->kp.fault_handler = Fault_Handler;
+		rbKprobe_devp->kp.offset = intermediate.addr;
 		
-		struct kprobeNode* nodeToAdd = kmalloc(sizeof(struct kprobeNode), GFP_KERNEL);
-		if(!(nodeToAdd)) {
-			printk("Bad Kmalloc\n"); 
-			spin_unlock(&(rbKprobe_devp->spinlockDevice));
-			return -ENOMEM;
-		}
-		
+		int verifyRegister = register_kprobe(&(rbKprobe_devp->kp));
 
-		nodeToAdd->kp.addr = &addrToInsert;
-		nodeToAdd->kp.pre_handler = Pre_Handler;
-		
-		// register kprobe
-		int verifyRegister = register_kprobe(&(nodeToAdd->kp));
+		printk("Trying to register\n");
 		if(verifyRegister != 0) {
-			printk("kprobe register failed\n");
-			return -1;
-		}
-		// add to end of list
-		list_add_tail(&(nodeToAdd->list), &(rbKprobe_devp->head));
-		
-		// Just for one kprobe
-		rbKprobe_devp->kp.addr = &addrToInsert;
-		rbKprobe_devp->kp.pre_handler = Pre_Handler;
-		int verifyProbeRegister = register_kprobe(&(rbKprobe_devp->kp));
-		if(verifyProbeRegister != 0) {
 			printk("Kprobe was not registered\n");
+			printk("ERROR = %d\n", verifyRegister);
 			spin_unlock(&(rbKprobe_devp->spinlockDevice));
-			return -1;
-		}
-		kfree(nodeToAdd);
-		return 0;
-
-
-
-
-	
-		//int verifyNewNode = registerkProbe(rbKprobe_devp, buf, count);
-		
-	} else if(flag == 0) {
-		// remove kprobe node from list
-
-		// TODO USE THIS int verifyDeleteNode = deregisterkProbe(rbKprobe_devp, buf - sizeof(char), count - sizeof(char));
-		//int verifyDeleteNode = deregisterkProbe(rbKprobe_devp, buf, count);
+			return -EINVAL;
+		} 
+	}
+	else if((intermediate.flag) == -1) {
+		// unregister write function kprobe
 		unregister_kprobe(&(rbKprobe_devp->kp));
-		spin_unlock(&(rbKprobe_devp->spinlockDevice));
-		return 0;
+		printk("Unregistered Kprobe\n");
 
-	} else {
-		printk("Invalid Flag\n");
-		spin_unlock(&(rbKprobe_devp->spinlockDevice));
-		return -1;
+	} 
+	else if((intermediate.flag) == 2) {
+
+		memset(&(rbKprobe_devp->kp_read), 0, sizeof(struct kprobe));
+
+		char* sym_rb_read = "rbtree_driver_read";
+
+		rbKprobe_devp->kp_read.addr = (kprobe_opcode_t*) kallsyms_lookup_name(sym_rb_read);
+
+		rbKprobe_devp->kp_read.pre_handler = Pre_Handler;
+		rbKprobe_devp->kp_read.post_handler = Post_Handler;
+		//rbKprobe_devp->kp.symbol_name = "rbtree_driver_write";
+		//rbKprobe_devp->kp.fault_handler = Fault_Handler;
+		rbKprobe_devp->kp_read.offset = intermediate.addr;
+
+		int verifyRegisterRead = register_kprobe(&(rbKprobe_devp->kp_read));
+
+		printk("Trying to register\n");
+		if(verifyRegisterRead != 0) {
+			printk("Kprobe was not registered\n");
+			printk("ERROR = %d\n", verifyRegisterRead);
+			spin_unlock(&(rbKprobe_devp->spinlockDevice));
+			return -EINVAL;
+		} 
 
 	}
+	else if((intermediate.flag) == -2) {
+		unregister_kprobe(&(rbKprobe_devp->kp_read));
+		printk("Unregistered kprobe read\n");
 
+	}
+	else {
+		printk("Invalid Flag\n");
+		spin_unlock(&(rbKprobe_devp->spinlockDevice));
+		return 0;
+	}
 
-	// TODO: Test count
-	//printk("Original Count = %zu\n", count);
-	// subtract one because of the strlen)+1 parameter from userspace
-	*/
-	// UNLOCK
+	printk("Kprobe Registered\n");
 	spin_unlock(&(rbKprobe_devp->spinlockDevice));
 	return 0;
 }
-
 
 
 
@@ -607,11 +507,12 @@ ssize_t rbKprobe_driver_read(struct file *file, char *buf,
 	// LOCK (in case someone wants to remove driver)
 	spin_lock(&(rbKprobe_devp->spinlockDevice));
 
-	int errChkKeyData = copy_to_user(buf, &(rbKprobe_devp->probe_buffer), sizeof(struct probe_data));
-	if(errChkKeyData == -EFAULT) {
+	int errChkSendProbeBuffer = copy_to_user(buf, &(rbKprobe_devp->probe_buffer), sizeof(struct probe_data));
+	printk("Copy To User From kprobe Result = %d\n", errChkSendProbeBuffer);
+	if(errChkSendProbeBuffer != 0) {
 		printk("copy_to_user Error\n");
 		spin_unlock(&(rbtree_devp->spinlockDevice));
-		return PTR_ERR(buf);
+		return -1;
 	}
 
 	bytes_read = bytes_read + sizeof(struct probe_data);
@@ -652,7 +553,6 @@ struct rbKprobe_dev {
  */
 int __init rbKprobe_driver_init(void)
 {
-	/* TODO: Create two devices!!!!!!!!!!!! */
 	int ret;
 	int time_since_boot;
 
@@ -685,11 +585,9 @@ int __init rbKprobe_driver_init(void)
 	// Initialize linked list
 	INIT_LIST_HEAD(&(rbKprobe_devp->head));
 
-	//rbKprobe_devp->head.next = NULL;
-
-
 	// set default read order value (can be changed with ioctl)
 	rbKprobe_devp->readOrderDevice = 0;
+	//rbKprobe_devp->kp = NULL;
 
 	/* Request I/O region */
 	sprintf(rbKprobe_devp->name, DEVICE_NAME);
@@ -732,6 +630,8 @@ int __init rbKprobe_driver_init(void)
 
 	return 0;
 }
+
+
 /* Driver Exit */
 void __exit rbKprobe_driver_exit(void)
 {
@@ -739,15 +639,14 @@ void __exit rbKprobe_driver_exit(void)
 	/* Release the major number */
 	unregister_chrdev_region((rbKprobe_dev_number), 1);
 
-
-
 	// TODO deregister and free all kprobe nodes in list
+	//kfree(rbKprobe_devp->k)
 
 	// unregister kprobe
 	unregister_kprobe(&(rbKprobe_devp->kp));
 
 	/* Destroy device */
-	device_destroy (rbKprobe_dev_class, MKDEV(MAJOR(rbKprobe_dev_number), 0));
+	device_destroy(rbKprobe_dev_class, MKDEV(MAJOR(rbKprobe_dev_number), 0));
 	cdev_del(&rbKprobe_devp->cdev);
 	kfree(rbKprobe_devp);
 	

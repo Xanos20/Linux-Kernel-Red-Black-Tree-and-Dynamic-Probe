@@ -20,13 +20,35 @@
 //#include <sodium.h>
 
 
-typedef struct fd_struct {
-	int tree1_fd;
-	int tree2_fd;
-	int probe_fd;
-} fd_struct_t;
 
-struct fd_struct file_descriptors;
+
+
+
+
+// for generating the path to the current node in the rb driver
+struct keydata {
+	int key;
+	int data;
+
+};
+struct path_to_cursor {
+	int pathLength;
+	struct keydata path[10];
+};
+
+// the kprobe buffer
+typedef struct probe_data {
+	void* addr;
+	pid_t pid;
+	unsigned long long tsc;
+	struct path_to_cursor path;
+} probe_data_t;
+
+
+
+
+
+
 
 typedef struct pair {
 	int key;
@@ -36,7 +58,6 @@ typedef struct pair {
 typedef struct kprobe_pair {
 	int flag;
 	unsigned long offsetInsideFunction;
-
 } kprobe_pair_t;
 
 
@@ -59,7 +80,6 @@ int write_to_kprobe_driver(int probe_fd) {
 
 	}
 	return 0;
-
 }
 
 
