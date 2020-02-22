@@ -72,7 +72,7 @@ int write_to_kprobe_driver_remove(int probe_fd) {
 	int kprobeWrite;
 	kprobeWrite = write(probe_fd, &kpair, sizeof(struct kprobe_pair));
 	if(kprobeWrite < 0) {
-		printf("Can not write to device file.\n");		
+		fprintf(stderr, "Can not write to device file.\n");		
 		exit(-1);
 
 	}
@@ -93,7 +93,7 @@ int write_to_kprobe_driver(int probe_fd) {
 	int kprobeWrite;
 	kprobeWrite = write(probe_fd, &kpair, sizeof(struct kprobe_pair));
 	if(kprobeWrite < 0) {
-		printf("Can not write to device file.\n");		
+		fprintf(stderr, "Can not write to device file.\n");		
 		exit(-1);
 
 	}
@@ -126,7 +126,7 @@ int write_to_kprobe_driver_removeRead(int probe_fd) {
 	int kprobeWrite;
 	kprobeWrite = write(probe_fd, &kpair, sizeof(struct kprobe_pair));
 	if(kprobeWrite < 0) {
-		printf("Can not write to device file.\n");		
+		fprintf(stderr, "Can not write to device file.\n");		
 		exit(-1);
 
 	}
@@ -149,7 +149,7 @@ int write_to_kprobe_driverRead(int probe_fd) {
 	int kprobeWrite;
 	kprobeWrite = write(probe_fd, &kpair, sizeof(struct kprobe_pair));
 	if(kprobeWrite < 0) {
-		printf("Can not write to device file.\n");		
+		fprintf(stderr, "Can not write to device file.\n");		
 		exit(-1);
 
 	}
@@ -191,8 +191,8 @@ int read_from_kprobe_driver(int probe_fd) {
 	int res;
 	res = read(probe_fd, buff, sizeof(struct probe_data));
 	if(res < 0) {
-		printf("Read from tree failed\n");
-		return -1;
+		fprintf(stderr, "Read from tree failed\n");
+		exit(-1);
 	}
 	
 	struct probe_data* fromKernel;
@@ -313,11 +313,11 @@ int write_pair_to_tree(int tree_fd, int key, int data) {
 	toDriver.key = key;
 	toDriver.data = data;
 	int res;
-	printf("Sending to Kernel Write\n");
+	//printf("Sending to Kernel Write\n");
 	res = write(tree_fd, &toDriver, sizeof(struct pair));
 	if(res == -1) {
-		printf("Write to tree failed\n");
-		return -1;
+		fprintf(stderr, "Write to tree failed with code = %d\n", res);
+		exit(-1);;
 	}
 	return 0;
 }
@@ -342,8 +342,8 @@ int change_tree_read_order(int tree_fd, int read_order) {
 	int ret;
 	ret = ioctl(tree_fd, read_order);
 	if(ret != 0) {
-		printf("Ioctl Command Did Not Work\n");
-		return -1;
+		fprintf(stderr, "Ioctl Command Did Not Work With Code = %d\n", ret);
+		exit(-1);
 	}
 	return 0;
 }
@@ -354,8 +354,9 @@ int read_from_tree(int tree_fd) {
 	int res;
 	res = read(tree_fd, buff, sizeof(struct pair));
 	if(res < 0) {
-		printf("Read from tree failed\n");
-		return -1;
+		// change read order instead of exiting
+		fprintf(stderr, "Read from tree failed with code = %d\n", res);
+		return(-1);
 	}
 	struct pair* validate;
 	validate = (struct pair*) buff;
@@ -365,10 +366,9 @@ int read_from_tree(int tree_fd) {
 }
 
 
-
+/////////////////////////////////////////////////////////////////////////
 // File descriptors for tree1, tree2, kprobe driver
 int tree1_fd, tree2_fd, probe_fd;
-
 
 
 // Populate the first tree
@@ -379,6 +379,14 @@ pthread_attr_t Thread_Populate_Tree1_Attr;
 pthread_t Thread_Populate_Tree2;
 pthread_attr_t Thread_Populate_Tree2_Attr;
 
+// Sum of read and write ops for each tree (should be protected by mutex)
+pthread_mutex_t lock_tree1_rw_ops;
+int num_tree1_rw_ops;
+pthread_mutex_t lock_tree2_rw_ops;
+int num_tree2_rw_ops;
+
+
+
 
 // Read and Write and IOCTL Random Ops In Tree 1
 pthread_t Thread_RW_Tree1_First;
@@ -386,6 +394,9 @@ pthread_attr_t Thread_RW_Tree1_First_Attr;
 
 pthread_t Thread_RW_Tree1_Second;
 pthread_attr_t Thread_RW_Tree1_Second_Attr;
+
+
+
 
 // Read and Write and IOCTL Random Ops In TREE 2
 pthread_t Thread_RW_Tree2_Third;
@@ -401,172 +412,25 @@ pthread_attr_t Thread_Usr_Controlled_Probe_Attr;
 
 
 
-
-void* T1simulate() {
-	int fun_choice = 0;
-	fun_choice = rand() % 13;
-
-	// IOCTL Read Ascending
-	if(fun_choice == 0) {
-		change_tree_read_order(tree1_fd, 0);
-	} 
-	else if(fun_choice == 1) {
-		change_tree_read_order(tree2_fd, 0);
-	}
-
-	// IOCTL READ DESCENDING
-	else if(fun_choice == 2) {
-		change_tree_read_order(tree1_fd, 1);
-	} 
-	else if(fun_choice == 3) {
-		change_tree_read_order(tree2_fd, 1);
-	}
-
-	// RbTree Write
-	else if(fun_choice == 4) {
-		write_to_tree(tree1_fd);
-	}
-	else if(fun_choice == 5) {
-		write_to_tree(tree2_fd);
-	}
-
-	// Read
-	else if(fun_choice == 6) {
-		read_from_tree(tree1_fd);
-	}
-	else if(fun_choice == 7) {
-		read_from_tree(tree2_fd);
-	}
-
-	// Kprobe Write Write
-	else if(fun_choice == 8) {
-		write_to_kprobe_driver(probe_fd);
-	}
-	else if(fun_choice == 9) {
-		write_to_kprobe_driver_remove(probe_fd);
-	} 
-
-	// Kprobe Read Read
-	else if(fun_choice == 10) {
-		write_to_kprobe_driverRead(probe_fd);
-	} 
-	else if(fun_choice == 11) {
-		write_to_kprobe_driver_removeRead(probe_fd);
-	}
-
-	// Sleep
-	else {
-		sleep(1);
-	}
-	/*
-	printf("Write to kprobe driver\n");
-	write_to_kprobe_driver(probe_fd);
-	write_to_tree_hardcode2(tree1_fd);
-	write_to_tree_hardcode4(tree1_fd);
-	read_from_tree(tree1_fd);
-	read_from_kprobe_driver(probe_fd);
-	write_to_tree_hardcode6(tree1_fd);
-	read_from_tree(tree1_fd);
-	write_to_tree_hardcode8(tree1_fd);
-	read_from_kprobe_driver(probe_fd);
-	*/
-	
-
-}
-
-void* T2simulate() {
-
-	int fun_choice = 0;
-	fun_choice = rand() % 13;
-
-	// IOCTL Read Ascending
-	if(fun_choice == 0) {
-		change_tree_read_order(tree1_fd, 0);
-	} 
-	else if(fun_choice == 1) {
-		change_tree_read_order(tree2_fd, 0);
-	}
-
-	// IOCTL READ DESCENDING
-	else if(fun_choice == 2) {
-		change_tree_read_order(tree1_fd, 1);
-	} 
-	else if(fun_choice == 3) {
-		change_tree_read_order(tree2_fd, 1);
-	}
-
-	// RbTree Write
-	else if(fun_choice == 4) {
-		write_to_tree(tree1_fd);
-	}
-	else if(fun_choice == 5) {
-		write_to_tree(tree2_fd);
-	}
-
-	// Read
-	else if(fun_choice == 6) {
-		read_from_tree(tree1_fd);
-	}
-	else if(fun_choice == 7) {
-		read_from_tree(tree2_fd);
-	}
-
-	// Kprobe Write Write
-	else if(fun_choice == 8) {
-		write_to_kprobe_driver(probe_fd);
-	}
-	else if(fun_choice == 9) {
-		write_to_kprobe_driver_remove(probe_fd);
-	} 
-
-	// Kprobe Read Read
-	else if(fun_choice == 10) {
-		write_to_kprobe_driverRead(probe_fd);
-	} 
-	else if(fun_choice == 11) {
-		write_to_kprobe_driver_removeRead(probe_fd);
-	}
-
-	// Sleep
-	else {
-		sleep(1);
-	}
-
-	/*
-	printf("Write to kprobe driver\n");
-	write_to_kprobe_driver(probe_fd);
-	write_to_tree_hardcode2(tree1_fd);
-	write_to_tree_hardcode4(tree1_fd);
-	read_from_tree(tree1_fd);
-	read_from_kprobe_driver(probe_fd);
-	write_to_tree_hardcode6(tree1_fd);
-	read_from_tree(tree1_fd);
-	write_to_tree_hardcode8(tree1_fd);
-	read_from_kprobe_driver(probe_fd);
-	*/
-	
-
-}
-
-int open_file_descriptors() {
+void open_file_descriptors() {
 	tree1_fd = open("/dev/rbt530_dev", O_RDWR);
 	if (tree1_fd < 0 ){
-		printf("Can not open device file.\n");		
-		return -1;
+		fprintf(stderr, "Can not open device file.\n");		
+		exit(-1);
 	}
 	
 	tree2_fd = open("/dev/rbt530_dev2", O_RDWR);
 	if (tree2_fd < 0 ){
-		printf("Can not open device file.\n");		
-		return -1;
+		fprintf(stderr, "Can not open device file.\n");		
+		exit(-1);
 	}
 	
 	probe_fd = open("/dev/RBprobe", O_RDWR);
 	if (probe_fd < 0 ){
-		printf("Can not open device file.\n");		
-		return -1;
+		fprintf(stderr, "Can not open device file.\n");		
+		exit(-1);
 	}
-	return 0;
+	return;
 }
 
 int close_file_descriptors() {
@@ -576,20 +440,191 @@ int close_file_descriptors() {
 
 	ret = close(tree1_fd);
 	if(ret != 0) {
-		return ret;
+		fprintf(stderr, "tree1 not closed correctly\n");
+		exit(-1);
 	}
 
 	ret = close(tree2_fd);
 	if(ret != 0) {
-		return ret;
+		fprintf(stderr, "tree2 not closed correctly\n");
+		exit(-1);
 	}
 
 	ret = close(probe_fd);
 	if(ret != 0) {
-		return ret;
+		fprintf(stderr, "probe_fd not closed correctly\n");
+		exit(-1);
 	}
 
 	return 0;
+}
+
+
+
+/*
+// Kprobe Write Write
+		else if(fun_choice == 8) {
+			write_to_kprobe_driver(probe_fd);
+		}
+		else if(fun_choice == 9) {
+			write_to_kprobe_driver_remove(probe_fd);
+		} 
+
+		// Kprobe Read Read
+		else if(fun_choice == 10) {
+			write_to_kprobe_driverRead(probe_fd);
+		} 
+		else if(fun_choice == 11) {
+			write_to_kprobe_driver_removeRead(probe_fd);
+		}
+
+*/
+/*
+void* simulate_RWI_T1() {
+
+	int fun_choice = 0;
+	fun_choice = rand() % 9;
+
+	while(true) {
+
+		if(num_tree1_rw_ops > 50 && num_tree2_rw_ops == 50) {
+			return (void*) 0;
+		}
+
+		// IOCTL Read Ascending
+		if(fun_choice == 0) {
+			change_tree_read_order(tree1_fd, 0);
+		} 
+		else if(fun_choice == 1) {
+			change_tree_read_order(tree2_fd, 0);
+		}
+
+		// IOCTL READ DESCENDING
+		else if(fun_choice == 2) {
+			change_tree_read_order(tree1_fd, 1);
+		} 
+		else if(fun_choice == 3) {
+			change_tree_read_order(tree2_fd, 1);
+		}
+
+		// RbTree Write
+		else if(fun_choice == 4 && ) {
+			// write tree 1
+			write_to_tree(tree1_fd);
+
+			pthread_mutex_lock(&lock_tree1_rw_ops);
+			num_tree1_rw_ops += 1;
+			pthread_mutex_unlock(&lock_tree1_rw_ops);
+		}
+		else if(fun_choice == 5) {
+			// write tree 2
+			write_to_tree(tree2_fd);
+
+			pthread_mutex_lock(&lock_tree2_rw_ops);
+			num_tree2_rw_ops += 1;
+			pthread_mutex_unlock(&lock_tree2_rw_ops);
+		}
+
+		// RbTree Read
+		else if(fun_choice == 6) {
+			// read tree 1
+			read_from_tree(tree1_fd);
+
+			pthread_mutex_lock(&lock_tree1_rw_ops);
+			num_tree1_rw_ops += 1;
+			pthread_mutex_unlock(&lock_tree1_rw_ops);
+		}
+		else if(fun_choice == 7) {
+			// read tree 2
+			read_from_tree(tree2_fd);
+
+			pthread_mutex_lock(&lock_tree2_rw_ops);
+			num_tree2_rw_ops += 1;
+			pthread_mutex_unlock(&lock_tree2_rw_ops);
+		}
+
+		// Sleep
+		else {
+			sleep(1);
+		}
+	}
+
+	return (void*) 0;
+
+}
+*/
+
+void* simulate_RWI() {
+	printf("IN SIMULATE\n");
+	
+	int fun_choice = 0;
+	fun_choice = rand() % 5;
+
+	while(1) {
+		fun_choice = rand() % 6;
+
+		printf("fun_choice = %d\n", fun_choice);
+		printf("total ops rw = %d\n", num_tree1_rw_ops);
+
+		if(num_tree1_rw_ops >= 50) {
+			return (void*) 0;
+		}
+
+		// IOCTL Read Ascending
+		if(fun_choice == 0) {
+			change_tree_read_order(tree1_fd, 0);
+		} 
+
+		// IOCTL READ DESCENDING
+		else if(fun_choice == 1) {
+			change_tree_read_order(tree1_fd, 1);
+		} 
+		
+		// RbTree Write
+		else if(fun_choice == 2) {
+			// write tree 1
+			write_to_tree(tree1_fd);
+
+			pthread_mutex_lock(&lock_tree1_rw_ops);
+			num_tree1_rw_ops += 1;
+			pthread_mutex_unlock(&lock_tree1_rw_ops);
+		}
+
+		// RbTree Read
+		else if(fun_choice == 3) {
+			// read tree 1
+			int chk_read = -1;
+			chk_read = read_from_tree(tree1_fd);
+			pthread_mutex_lock(&lock_tree1_rw_ops);
+			num_tree1_rw_ops += 1;
+			pthread_mutex_unlock(&lock_tree1_rw_ops);
+			if(chk_read == -1) {
+				printf("Node is Empty, Change Read Order\n");
+				int j = 0;
+				j = rand() % 2;
+				if(j == 0) {
+					change_tree_read_order(tree1_fd, 0);
+				} else {
+					change_tree_read_order(tree1_fd, 1);
+				}
+			}
+
+			
+		}
+		
+		// Sleep
+		else {
+			sleep(1);
+		}
+	}
+	
+	return (void*) 0;
+
+}
+
+void* simulate_RWI_finish() {
+	printf("Finished simulation\n");
+	return (void*) 0;
 }
 
 
@@ -604,6 +639,7 @@ void* populate_second_tree() {
 		
 		verify = write_pair_to_tree(tree2_fd, key, data);
 		if(verify != 0) {
+			fprintf(stderr, "populate_second_tree failed with %d\n", verify);
 			exit(-1);
 		}
 	}
@@ -617,6 +653,11 @@ void* populate_second_tree_finished() {
 }
 
 
+
+
+
+
+
 void* populate_first_tree() {
 	printf("Initialize Thread_Populate_Tree1\n");
 
@@ -627,9 +668,11 @@ void* populate_first_tree() {
 
 		verify = write_pair_to_tree(tree1_fd, key, data);
 		if(verify != 0) {
+			fprintf(stderr, "populate_first_tree failed with %d\n", verify);
 			exit(-1);
 		}
 	}
+
 
 	return (void*) 0;
 }
@@ -646,36 +689,76 @@ int main(int argc, char **argv)
 {
 	
 	// Open Devices
-	int open_verify = -1;
-	open_verify = open_file_descriptors();
-	if(open_verify != 0) {
-		exit(-1);
-	}
+	open_file_descriptors();
+
 
 	printf("Files REACHED\n");
 
-	/*
+	num_tree1_rw_ops = 0;
+	num_tree2_rw_ops = 0;
+
+	// For the random delay for starting threads
+	int sleep_for = 0;
+	
+
+
+	// Populate first device
 	int did_populate_first_tree = -1;
 	did_populate_first_tree = pthread_create(&Thread_Populate_Tree1, NULL, populate_first_tree, populate_first_tree_finished);
 
 	if(did_populate_first_tree != 0) {
-		printf("A tree was not populated\n");
+		fprintf(stderr, "First tree was not populated\n");
 		exit(-1);
 	}
 
-	pthread_join(Thread_Populate_Tree1, NULL);
-	*/
-
-
+	// Populate second device
 	int did_populate_second_tree = -1;
 	did_populate_second_tree = pthread_create(&Thread_Populate_Tree2, NULL, populate_second_tree, populate_second_tree_finished);
 
 	if(did_populate_second_tree != 0) {
-		printf("Second tree was not populated\n");
+		fprintf(stderr, "Second tree was not populated\n");
 		exit(-1);
 	}
+
+	// Join both threads
+	pthread_join(Thread_Populate_Tree1, NULL);
 	pthread_join(Thread_Populate_Tree2, NULL);
-	
+
+	// Use random multithread operations on first tree
+	/*
+	pthread_t Thread_RW_Tree1_First;
+	pthread_attr_t Thread_RW_Tree1_First_Attr;
+
+	pthread_t Thread_RW_Tree1_Second;
+	pthread_attr_t Thread_RW_Tree1_Second_Attr;
+
+	*/
+	printf("Check First Thread\n");
+	int did_first_thread_rwi_tree = -1;
+	int verify_first_attr = -1;
+	/*
+	verify_first_attr = pthread_attr_init(&Thread_RW_Tree1_First_Attr);
+	if(verify_first_attr != 0) {
+		fprintf(stderr, "verify_first_attr failed with code = %d\n", verify_first_attr);
+		exit(-1);
+	}
+	*/
+	printf("Check Attr Policy\n");
+
+	verify_first_attr = pthread_attr_setschedpolicy(&Thread_RW_Tree1_First_Attr, SCHED_FIFO);
+	if(verify_first_attr != 0) {
+		fprintf(stderr, "verify_first_attr with FIFO failed with code = %d\n", verify_first_attr);
+		exit(-1);
+	}
+	printf("Check pthread\n");
+
+	did_first_thread_rwi_tree = pthread_create(&Thread_RW_Tree1_First, &Thread_RW_Tree1_First_Attr, simulate_RWI, simulate_RWI_finish);
+	if(did_first_thread_rwi_tree != 0) {
+		fprintf(stderr, "did_first_thread_rwi_tree code = %d\n", did_first_thread_rwi_tree);
+		exit(-1);
+	}
+	printf("Made pthread\n");
+	pthread_join(Thread_RW_Tree1_First, NULL);
 
 	/*
 	printf("Write to kprobe driver\n");
