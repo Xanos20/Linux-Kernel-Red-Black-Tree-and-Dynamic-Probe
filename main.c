@@ -309,15 +309,15 @@ int main(int argc, char **argv)
 	printf("write to tree first time\n");
 	write_to_tree(tree1_fd);
 
-	/*
+	
 	printf("Write to kprobe driver\n");
 	write_to_kprobe_driver(probe_fd);
 	//write_to_kprobe_driverRead(probe_fd);
-	*/
+	
 
 	printf("read from tree\n");
 	read_from_tree(tree1_fd);
-	/*
+	
 	printf("Write to Tree 2nd Time\n");
 	write_to_tree(tree1_fd);
 
@@ -330,80 +330,8 @@ int main(int argc, char **argv)
 	printf("Remove the kprobe\n");
 	write_to_kprobe_driver_remove(probe_fd);
 	//write_to_kprobe_driver_removeRead(probe_fd);
-	*/
 	
-	/*
-	printf("Write to kprobe driver To Remove Kprobe\n");
-	write_to_kprobe_driver_remove(probe_fd);
-	*/
 	
-
-	/*
-	
-	struct pair toDriver;
-	toDriver.key = 1;
-	toDriver.data = 2;
-
-	//int sz = strlen(buff);
-	//printf("Buff Size = %d\n", sz);
-	//res = write(fd, buff, strlen(buff)+1);
-	printf("Key = %d\n", toDriver.key);
-	printf("Data = %d\n", toDriver.data);
-	printf("SizeStruct = %ld\n", sizeof(struct pair));
-	// write one every time
-	res = write(fd, &toDriver, sizeof(struct pair));
-
-	toDriver.key = 3;
-	toDriver.data = 4;
-
-	res = write(fd, &toDriver, sizeof(struct pair));
-
-
-	toDriver.key = 5;
-	toDriver.data = 6;
-	res = write(fd, &toDriver, sizeof(struct pair));
-	*/
-	//printf("Call ioctl\n");
-	//change_tree_read_order(tree1_fd, 0);
-
-	
-	/*printf("READ\n");
-
-	read_from_tree(tree1_fd);
-	read_from_tree(tree1_fd);
-	read_from_tree(tree1_fd);
-	*/
-	/*
-	res = read(fd, buff, sizeof(struct pair));
-	printf("READ Result = %d\n", res);
-	struct pair* validate;
-	validate = (struct pair*) buff;
-	printf("Struct Validate Key = %d\n", validate->key);
-	printf("Struct Validate Data = %d\n", validate->data);
-
-	//struct pair* validate;
-
-	res = read(fd, buff, sizeof(struct pair));
-	printf("READ Result = %d\n", res);
-	//struct pair* validate;
-	validate = (struct pair*) buff;
-	printf("Struct Validate Key = %d\n", validate->key);
-	printf("Struct Validate Data = %d\n", validate->data);
-
-
-	//validate = (struct pair*) buff;
-	res = read(fd, buff, sizeof(struct pair));
-	printf("Struct Validate Key = %d\n", validate->key);
-	printf("Struct Validate Data = %d\n", validate->data);
-	*/
-		/*
-	if(strcmp("show", argv[1]) == 0) {
-			memset(buff, 0, 1024);
-			res = read(fd, buff, 256);
-			sleep(1);
-			// printf("'%s'\n", buff);
-	}
-	*/
 	printf("Close\n");
 	close(tree1_fd);
 	//close(tree2_fd);

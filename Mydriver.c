@@ -822,17 +822,18 @@ void __exit rbtree_driver_exit(void)
 	//printk("rbtree driver removed.\n");
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	/*
 	printk("remove second tree\n");
 	unregister_chrdev_region((rbtree_dev_number_second), 1);
 
-	/* Destroy device */
+	// Destroy device /
 	device_destroy (rbtree_dev_class_second, MKDEV(MAJOR(rbtree_dev_number_second), 0));
 	cdev_del(&rbtree_devp_second->cdev);
 	kfree(rbtree_devp_second);
 	
-	/* Destroy driver_class */
+	// Destroy driver_class /
 	class_destroy(rbtree_dev_class_second);
-
+	*/
 	printk("rbtree driver removed.\n");
 
 	return;
