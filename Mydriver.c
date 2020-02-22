@@ -721,7 +721,7 @@ int __init rbtree_driver_init(void)
 
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	/*
+	
 	printk("Initialize SECOND RB_TREE\n");
 
 	if (alloc_chrdev_region(&rbtree_dev_number_second, 0, 1, DEVICE_NAME_2) < 0) {
@@ -797,7 +797,7 @@ int __init rbtree_driver_init(void)
 	//rbtree_devp->mytree = NULL;
 
 	printk("rbtree driver SECOND initialized.\n'%s'\n",rbtree_devp_second->in_string);
-	*/
+	
 	return 0;
 }
 
@@ -822,7 +822,7 @@ void __exit rbtree_driver_exit(void)
 	//printk("rbtree driver removed.\n");
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	/*
+	
 	printk("remove second tree\n");
 	unregister_chrdev_region((rbtree_dev_number_second), 1);
 
@@ -833,7 +833,7 @@ void __exit rbtree_driver_exit(void)
 	
 	// Destroy driver_class /
 	class_destroy(rbtree_dev_class_second);
-	*/
+	
 	printk("rbtree driver removed.\n");
 
 	return;

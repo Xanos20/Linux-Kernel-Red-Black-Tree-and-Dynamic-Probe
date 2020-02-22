@@ -289,13 +289,13 @@ int main(int argc, char **argv)
 		printf("Can not open device file.\n");		
 		return 0;
 	}
-	/*
+	
 	tree2_fd = open("/dev/rbt530_dev2", O_RDWR);
 	if (tree2_fd < 0 ){
 		printf("Can not open device file.\n");		
 		return 0;
 	}
-	*/
+	
 
 	probe_fd = open("/dev/RBprobe", O_RDWR);
 	if (probe_fd < 0 ){
@@ -334,7 +334,7 @@ int main(int argc, char **argv)
 	
 	printf("Close\n");
 	close(tree1_fd);
-	//close(tree2_fd);
+	close(tree2_fd);
 	close(probe_fd);
 	return 0;
 }
