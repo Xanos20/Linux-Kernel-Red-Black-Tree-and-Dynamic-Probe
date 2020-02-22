@@ -400,7 +400,8 @@ ssize_t rbKprobe_driver_write(struct file *file, const char *buf,
 
 	struct retrieveFromUser intermediate;
 
-	unsigned long errChkStruct = copy_from_user(&intermediate, buf, sizeof(struct retrieveFromUser));
+	unsigned long errChkStruct = 0;
+	errChkStruct = copy_from_user(&intermediate, buf, sizeof(struct retrieveFromUser));
 	if(errChkStruct != 0) {
 		printk("Error in Struct From User\n");
 		return -1;

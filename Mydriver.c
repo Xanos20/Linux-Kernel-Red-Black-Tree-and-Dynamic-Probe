@@ -249,9 +249,11 @@ ssize_t rbtree_driver_write(struct file *file, const char *buf,
 	struct file* f = file;
 
 
+	
+	struct rbtree_dev *rbtree_devp = file->private_data;
+
 	// LOCK
 	spin_lock(&(rbtree_devp->spinlockDevice));
-	struct rbtree_dev *rbtree_devp = file->private_data;
 
 	
 	// TODO: Test count
@@ -359,10 +361,14 @@ Otherwise, -1 is returned and errno is set to EINVAL.
 long rbtree_driver_unlocked_ioctl(struct file *file, unsigned int ioctl_num, unsigned long ioctl_param) {
 	// TODO: local read order
 
+	
+
+	struct rbtree_dev *rbtree_devp = file->private_data;
+
 	// LOCK
 	spin_lock(&(rbtree_devp->spinlockDevice));
 
-	struct rbtree_dev *rbtree_devp = file->private_data;
+
 	printk("IN Unlocked_IOTCL\n");
 	printk("ioctl number = %d\n", ioctl_num);
 
@@ -420,11 +426,13 @@ ssize_t rbtree_driver_read(struct file *file, char *buf,
 	// This file pointer is for referencing the x86 code for the kprobe pre-handler
 	volatile struct file* f = file;
 
-	// LOCK
-	spin_lock(&(rbtree_devp->spinlockDevice));
+	
 
 	
 	struct rbtree_dev *rbtree_devp = file->private_data;
+
+	// LOCK
+	spin_lock(&(rbtree_devp->spinlockDevice));
 
 
 	// for debugging x86
@@ -671,7 +679,7 @@ int __init rbtree_driver_init(void)
 	spin_lock_init(&(rbtree_devp->spinlockDevice));
 
 	// set default read order value (can be changed with ioctl)
-	rbtree_devp->readOrderDevice = 1;
+	rbtree_devp->readOrderDevice = 0;
 
 	// Request I/O region /
 	sprintf(rbtree_devp->name, DEVICE_NAME);

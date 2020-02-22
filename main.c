@@ -18,6 +18,8 @@
 #include <stdlib.h>
 //#include <linux/kprobes.h>
 //#include <sodium.h>
+#include <sys/ioctl.h>
+#include <pthread.h>
 
 
 
@@ -158,6 +160,13 @@ int write_to_kprobe_driverRead(int probe_fd) {
 
 
 /*
+
+struct keydata {
+	int key;
+	int data;
+
+};
+
 // the kprobe buffer
 typedef struct probe_data {
 	void* addr;
@@ -165,7 +174,14 @@ typedef struct probe_data {
 	unsigned long long tsc;
 	struct path_to_cursor path;
 } probe_data_t;
+
+struct path_to_cursor {
+	int pathLength;
+	struct keydata path[10];
+};
 */
+
+
 int read_from_kprobe_driver(int probe_fd) {
 
 
@@ -184,6 +200,13 @@ int read_from_kprobe_driver(int probe_fd) {
 	printf("Addr = %lx\n",  fromKernel->addr);
 	printf("PID = %d\n", fromKernel->pid);
 	printf("TSC = %lld\n", fromKernel->tsc);
+	printf("PATH LENGTH = %d\n", fromKernel->path.pathLength);
+	int i = 0;
+	i = fromKernel->path.pathLength;
+	for(int j = 0; j < i; j++) {
+		printf("Path Key = %d\n", fromKernel->path.path[j].key);
+		printf("Path Data = %d\n", fromKernel->path.path[j].data);
+	}
 	
 	return 0;
 } 
@@ -196,8 +219,61 @@ int write_to_tree(int tree_fd) {
 	struct pair toDriver;
 	//toDriver.key = randombytes_uniform(10);
 	//toDriver.data = randombytes_uniform(10);
-	toDriver.key = rand() % 10;
-	toDriver.data = rand() % 10;
+	toDriver.key = rand() % 100;
+	toDriver.data = rand() % 100;
+	int res = 0;
+	printf("Sending to Kernel RBTree Write\n");
+	res = write(tree_fd, &toDriver, sizeof(struct pair));
+	if(res == -1) {
+		printf("Write to tree failed\n");
+		return -1;
+	}
+	return 0;
+}
+
+// TREE
+int write_to_tree_hardcode2(int tree_fd) {
+
+	struct pair toDriver;
+	//toDriver.key = randombytes_uniform(10);
+	//toDriver.data = randombytes_uniform(10);
+	toDriver.key = 2;
+	toDriver.data = 3;
+	int res = 0;
+	printf("Sending to Kernel Write\n");
+	res = write(tree_fd, &toDriver, sizeof(struct pair));
+	if(res == -1) {
+		printf("Write to tree failed\n");
+		return -1;
+	}
+	return 0;
+}
+
+int write_to_tree_hardcode4(int tree_fd) {
+
+	struct pair toDriver;
+	//toDriver.key = randombytes_uniform(10);
+	//toDriver.data = randombytes_uniform(10);
+	toDriver.key = 4;
+	toDriver.data = 5;
+	int res;
+	printf("Sending to Kernel Write\n");
+	res = write(tree_fd, &toDriver, sizeof(struct pair));
+	if(res == -1) {
+		printf("Write to tree failed\n");
+		return -1;
+	}
+	return 0;
+}
+
+
+int write_to_tree_hardcode6(int tree_fd) {
+
+	struct pair toDriver;
+	//toDriver.key = randombytes_uniform(10);
+	//toDriver.data = randombytes_uniform(10);
+	toDriver.key = 6;
+	toDriver.data = 7;
 	int res;
 	printf("Sending to Kernel Write\n");
 	res = write(tree_fd, &toDriver, sizeof(struct pair));
@@ -210,9 +286,41 @@ int write_to_tree(int tree_fd) {
 
 
 
+int write_to_tree_hardcode8(int tree_fd) {
+
+	struct pair toDriver;
+	//toDriver.key = randombytes_uniform(10);
+	//toDriver.data = randombytes_uniform(10);
+	toDriver.key = 8;
+	toDriver.data = 9;
+	int res;
+	printf("Sending to Kernel Write\n");
+	res = write(tree_fd, &toDriver, sizeof(struct pair));
+	if(res == -1) {
+		printf("Write to tree failed\n");
+		return -1;
+	}
+	return 0;
+}
 
 
 
+int write_pair_to_tree(int tree_fd, int key, int data) {
+
+	struct pair toDriver;
+	memset(&toDriver, 0, sizeof(struct pair));
+	
+	toDriver.key = key;
+	toDriver.data = data;
+	int res;
+	printf("Sending to Kernel Write\n");
+	res = write(tree_fd, &toDriver, sizeof(struct pair));
+	if(res == -1) {
+		printf("Write to tree failed\n");
+		return -1;
+	}
+	return 0;
+}
 
 
 
@@ -258,54 +366,330 @@ int read_from_tree(int tree_fd) {
 
 
 
+// File descriptors for tree1, tree2, kprobe driver
+int tree1_fd, tree2_fd, probe_fd;
+
+
+
+// Populate the first tree
+pthread_t Thread_Populate_Tree1;
+pthread_attr_t Thread_Populate_Tree1_Attr;
+
+// Populate the SECOND tree
+pthread_t Thread_Populate_Tree2;
+pthread_attr_t Thread_Populate_Tree2_Attr;
+
+
+// Read and Write and IOCTL Random Ops In Tree 1
+pthread_t Thread_RW_Tree1_First;
+pthread_attr_t Thread_RW_Tree1_First_Attr;
+
+pthread_t Thread_RW_Tree1_Second;
+pthread_attr_t Thread_RW_Tree1_Second_Attr;
+
+// Read and Write and IOCTL Random Ops In TREE 2
+pthread_t Thread_RW_Tree2_Third;
+pthread_attr_t Thread_RW_Tree2_Third_Attr;
+
+pthread_t Thread_RW_Tree2_Fourth;
+pthread_attr_t Thread_RW_Tree2_Fourth_Attr;
+
+// The kprobe thread directly controlled by a user
+// Can read/write/ioctl in any tree
+pthread_t Thread_Usr_Controlled_Probe;
+pthread_attr_t Thread_Usr_Controlled_Probe_Attr;
 
 
 
 
-int simulate_reads() {
-	return 0;
+void* T1simulate() {
+	int fun_choice = 0;
+	fun_choice = rand() % 13;
+
+	// IOCTL Read Ascending
+	if(fun_choice == 0) {
+		change_tree_read_order(tree1_fd, 0);
+	} 
+	else if(fun_choice == 1) {
+		change_tree_read_order(tree2_fd, 0);
+	}
+
+	// IOCTL READ DESCENDING
+	else if(fun_choice == 2) {
+		change_tree_read_order(tree1_fd, 1);
+	} 
+	else if(fun_choice == 3) {
+		change_tree_read_order(tree2_fd, 1);
+	}
+
+	// RbTree Write
+	else if(fun_choice == 4) {
+		write_to_tree(tree1_fd);
+	}
+	else if(fun_choice == 5) {
+		write_to_tree(tree2_fd);
+	}
+
+	// Read
+	else if(fun_choice == 6) {
+		read_from_tree(tree1_fd);
+	}
+	else if(fun_choice == 7) {
+		read_from_tree(tree2_fd);
+	}
+
+	// Kprobe Write Write
+	else if(fun_choice == 8) {
+		write_to_kprobe_driver(probe_fd);
+	}
+	else if(fun_choice == 9) {
+		write_to_kprobe_driver_remove(probe_fd);
+	} 
+
+	// Kprobe Read Read
+	else if(fun_choice == 10) {
+		write_to_kprobe_driverRead(probe_fd);
+	} 
+	else if(fun_choice == 11) {
+		write_to_kprobe_driver_removeRead(probe_fd);
+	}
+
+	// Sleep
+	else {
+		sleep(1);
+	}
+	/*
+	printf("Write to kprobe driver\n");
+	write_to_kprobe_driver(probe_fd);
+	write_to_tree_hardcode2(tree1_fd);
+	write_to_tree_hardcode4(tree1_fd);
+	read_from_tree(tree1_fd);
+	read_from_kprobe_driver(probe_fd);
+	write_to_tree_hardcode6(tree1_fd);
+	read_from_tree(tree1_fd);
+	write_to_tree_hardcode8(tree1_fd);
+	read_from_kprobe_driver(probe_fd);
+	*/
+	
 
 }
 
+void* T2simulate() {
+
+	int fun_choice = 0;
+	fun_choice = rand() % 13;
+
+	// IOCTL Read Ascending
+	if(fun_choice == 0) {
+		change_tree_read_order(tree1_fd, 0);
+	} 
+	else if(fun_choice == 1) {
+		change_tree_read_order(tree2_fd, 0);
+	}
+
+	// IOCTL READ DESCENDING
+	else if(fun_choice == 2) {
+		change_tree_read_order(tree1_fd, 1);
+	} 
+	else if(fun_choice == 3) {
+		change_tree_read_order(tree2_fd, 1);
+	}
+
+	// RbTree Write
+	else if(fun_choice == 4) {
+		write_to_tree(tree1_fd);
+	}
+	else if(fun_choice == 5) {
+		write_to_tree(tree2_fd);
+	}
+
+	// Read
+	else if(fun_choice == 6) {
+		read_from_tree(tree1_fd);
+	}
+	else if(fun_choice == 7) {
+		read_from_tree(tree2_fd);
+	}
+
+	// Kprobe Write Write
+	else if(fun_choice == 8) {
+		write_to_kprobe_driver(probe_fd);
+	}
+	else if(fun_choice == 9) {
+		write_to_kprobe_driver_remove(probe_fd);
+	} 
+
+	// Kprobe Read Read
+	else if(fun_choice == 10) {
+		write_to_kprobe_driverRead(probe_fd);
+	} 
+	else if(fun_choice == 11) {
+		write_to_kprobe_driver_removeRead(probe_fd);
+	}
+
+	// Sleep
+	else {
+		sleep(1);
+	}
+
+	/*
+	printf("Write to kprobe driver\n");
+	write_to_kprobe_driver(probe_fd);
+	write_to_tree_hardcode2(tree1_fd);
+	write_to_tree_hardcode4(tree1_fd);
+	read_from_tree(tree1_fd);
+	read_from_kprobe_driver(probe_fd);
+	write_to_tree_hardcode6(tree1_fd);
+	read_from_tree(tree1_fd);
+	write_to_tree_hardcode8(tree1_fd);
+	read_from_kprobe_driver(probe_fd);
+	*/
+	
+
+}
+
+int open_file_descriptors() {
+	tree1_fd = open("/dev/rbt530_dev", O_RDWR);
+	if (tree1_fd < 0 ){
+		printf("Can not open device file.\n");		
+		return -1;
+	}
+	
+	tree2_fd = open("/dev/rbt530_dev2", O_RDWR);
+	if (tree2_fd < 0 ){
+		printf("Can not open device file.\n");		
+		return -1;
+	}
+	
+	probe_fd = open("/dev/RBprobe", O_RDWR);
+	if (probe_fd < 0 ){
+		printf("Can not open device file.\n");		
+		return -1;
+	}
+	return 0;
+}
+
+int close_file_descriptors() {
+	printf("Close All File Descriptors\n");
+
+	int ret = 0;
+
+	ret = close(tree1_fd);
+	if(ret != 0) {
+		return ret;
+	}
+
+	ret = close(tree2_fd);
+	if(ret != 0) {
+		return ret;
+	}
+
+	ret = close(probe_fd);
+	if(ret != 0) {
+		return ret;
+	}
+
+	return 0;
+}
+
+
+
+void* populate_second_tree() {
+	printf("Initialize Thread_Populate_Tree2\n");
+
+	for(int key = 1; key < 50 + 1; key++) {
+		// generate 50 key data pairs where the key=data
+		int verify = 0;
+		int data = key;
+		
+		verify = write_pair_to_tree(tree2_fd, key, data);
+		if(verify != 0) {
+			exit(-1);
+		}
+	}
+
+	return (void*) 0;
+}
+
+void* populate_second_tree_finished() {
+	printf("Second Tree Populated\n");
+	return (void*) 0;
+}
+
+
+void* populate_first_tree() {
+	printf("Initialize Thread_Populate_Tree1\n");
+
+	for(int key = 1; key < 50 + 1; key++) {
+		// generate 50 key data pairs where the key=data
+		int verify = 0;
+		int data = key;
+
+		verify = write_pair_to_tree(tree1_fd, key, data);
+		if(verify != 0) {
+			exit(-1);
+		}
+	}
+
+	return (void*) 0;
+}
+
+void* populate_first_tree_finished() {
+	printf("First Tree Populated\n");
+	return (void*) 0;
+}
 
 
 
 
 int main(int argc, char **argv)
 {
-	//int tree1_fd, res;
-	//char buff[sizeof(struct pair)];
-	int tree1_fd, tree2_fd, probe_fd;
-	/*
-	if(argc == 1){
-		return 0;
-	}
-	*/
-
-	/* open devices */
-	//fd = open("/dev/rbt530_dev", O_RDWR);
-	tree1_fd = open("/dev/rbt530_dev", O_RDWR);
-	if (tree1_fd < 0 ){
-		printf("Can not open device file.\n");		
-		return 0;
-	}
 	
-	tree2_fd = open("/dev/rbt530_dev2", O_RDWR);
-	if (tree2_fd < 0 ){
-		printf("Can not open device file.\n");		
-		return 0;
-	}
-	
-
-	probe_fd = open("/dev/RBprobe", O_RDWR);
-	if (probe_fd < 0 ){
-		printf("Can not open device file.\n");		
-		return 0;
+	// Open Devices
+	int open_verify = -1;
+	open_verify = open_file_descriptors();
+	if(open_verify != 0) {
+		exit(-1);
 	}
 
 	printf("Files REACHED\n");
+
+	/*
+	int did_populate_first_tree = -1;
+	did_populate_first_tree = pthread_create(&Thread_Populate_Tree1, NULL, populate_first_tree, populate_first_tree_finished);
+
+	if(did_populate_first_tree != 0) {
+		printf("A tree was not populated\n");
+		exit(-1);
+	}
+
+	pthread_join(Thread_Populate_Tree1, NULL);
+	*/
+
+
+	int did_populate_second_tree = -1;
+	did_populate_second_tree = pthread_create(&Thread_Populate_Tree2, NULL, populate_second_tree, populate_second_tree_finished);
+
+	if(did_populate_second_tree != 0) {
+		printf("Second tree was not populated\n");
+		exit(-1);
+	}
+	pthread_join(Thread_Populate_Tree2, NULL);
 	
 
+	/*
+	printf("Write to kprobe driver\n");
+	write_to_kprobe_driver(probe_fd);
+	write_to_tree_hardcode2(tree1_fd);
+	write_to_tree_hardcode4(tree1_fd);
+	read_from_tree(tree1_fd);
+	read_from_kprobe_driver(probe_fd);
+	write_to_tree_hardcode6(tree1_fd);
+	read_from_tree(tree1_fd);
+	write_to_tree_hardcode8(tree1_fd);
+	read_from_kprobe_driver(probe_fd);
+	
+	
 	printf("write to tree first time\n");
 	write_to_tree(tree1_fd);
 
@@ -326,15 +710,12 @@ int main(int argc, char **argv)
 
 	printf("Write to tree third time\n");
 	write_to_tree(tree1_fd);
+	*/
 
-	printf("Remove the kprobe\n");
-	write_to_kprobe_driver_remove(probe_fd);
+	//printf("Remove the kprobe\n");
+	//write_to_kprobe_driver_remove(probe_fd);
 	//write_to_kprobe_driver_removeRead(probe_fd);
 	
 	
-	printf("Close\n");
-	close(tree1_fd);
-	close(tree2_fd);
-	close(probe_fd);
-	return 0;
+	return close_file_descriptors();
 }
