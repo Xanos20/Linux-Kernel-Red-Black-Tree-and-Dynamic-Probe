@@ -6,12 +6,12 @@ Kamal Nadesan
 
 
 1) To Compile:
-- Run make in the directory with Mydriver.o
+- Run 'make' in the directory with Mydriver.c
   -> This will generate the x86 binary userspace (main) file 
   -> Will also generate the Mydriver.ko file
 
-2) Now Enter the Kernel_Probe Directory (located inside the previous directory)
-- Run make in this directory
+2) Now run make
+- Run 'make' in the Kernel_Probe directory with Driver_RB_Probe.c
   -> This will generate the Driver_RB_Probe.ko object
   -> It will also generate an extraneous main object file which is not used
 

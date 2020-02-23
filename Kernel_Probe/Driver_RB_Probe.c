@@ -325,10 +325,10 @@ int Pre_Handler(struct kprobe *probe, struct pt_regs *regs) {
 	// TODO: Get all rb objects from the file pointer should be in the eax register
 
 	// for 64 bit
-	struct file *file = (struct file*) regs->di;
+	//struct file *file = (struct file*) regs->di;
 
 	// for 32 bit
-	//struct file *file = (struct file*) regs->ax;
+	struct file *file = (struct file*) regs->ax;
 
 	// Get device data of the file
 	struct rbtree_dev *rbtree_devp = file->private_data;

@@ -73,7 +73,7 @@ int write_to_kprobe_driver_remove(int probe_fd) {
 	int kprobeWrite;
 	kprobeWrite = write(probe_fd, &kpair, sizeof(struct kprobe_pair));
 	if(kprobeWrite < 0) {
-		fprintf(stderr, "Can not write to device file.\n");		
+		fprintf(stderr, "Can not write to device file driver_remove, code = %d\n", kprobeWrite);		
 		exit(-1);
 
 	}
@@ -87,13 +87,13 @@ int write_to_kprobe_driver(int probe_fd, int flag, unsigned int offset) {
 
 	kpair.flag = flag;
 
-	kpair.offsetInsideFunction = offset;
+	kpair.offsetInsideFunction = 0x0;
 	printf("ADDR Passed = %x\n", kpair.offsetInsideFunction);
 
 	int kprobeWrite;
 	kprobeWrite = write(probe_fd, &kpair, sizeof(struct kprobe_pair));
 	if(kprobeWrite < 0) {
-		fprintf(stderr, "Can not write to device file, error = %d\n", kprobeWrite);		
+		fprintf(stderr, "Can not write to device file add_to_kprobe_write, error = %d\n", kprobeWrite);		
 		exit(-1);
 
 	}
@@ -136,7 +136,7 @@ int write_to_kprobe_driver_removeRead(int probe_fd) {
 
 
 
-int write_to_kprobe_driverRead(int probe_fd) {
+int write_to_kprobe_driverRead(int probe_fd, unsigned int offset) {
 	struct kprobe_pair kpair;
 	kpair.flag = 2;
 
@@ -149,7 +149,7 @@ int write_to_kprobe_driverRead(int probe_fd) {
 	int kprobeWrite;
 	kprobeWrite = write(probe_fd, &kpair, sizeof(struct kprobe_pair));
 	if(kprobeWrite < 0) {
-		fprintf(stderr, "Can not write to device file.\n");		
+		fprintf(stderr, "Can not write to device file rbtree_read, code = %d\n", kprobeWrite);		
 		exit(-1);
 
 	}
@@ -258,45 +258,7 @@ int write_pair_to_tree(int tree_fd, int key, int data) {
 
 
 
-/*
-int read_from_tree_iterative(int tree_fd) {
-	char buff[sizeof(struct pair)];
-	int res;
-	res = read(tree_fd, buff, sizeof(struct pair));
-	if(res < 0) {
-		// change read order instead of exiting
-		fprintf(stderr, "Read from tree failed with code = %d\n", res);
-		return(-1);
-	}
-	struct pair* validate;
-	validate = (struct pair*) buff;
-	printf("Validate Key Read From Tree Display = %d\n", validate->key);
-	printf("Validate Data Read From Tree Display = %d\n", validate->data);
-	return 0;
-}
-*/
 
-
-
-/*
-int display_tree(int tree_fd) {
-	printf("In Display Tree\n");
-	int ret;
-	ret = ioctl(tree_fd, 2);
-	if(ret != 0) {
-		fprintf(stderr, "Ioctl Command Did Not Work With Code = %d\n", ret);
-		exit(-1);
-	}
-	int rest = 0;
-	while(rest != -1) {
-		rest = read_from_tree_iterative(tree_fd);
-	}
-
-
-	printf("Displayed Contents\n");
-	return 0;
-}
-*/
 
 /*
 change_tree_read_order: 
@@ -585,10 +547,17 @@ void* interact_with_probes() {
 */
 
 
+
+
 void* probes() {
 	printf("In Kprobe Thread\n");
+	
 	write_to_kprobe_driver(probe_fd, 1, 0x0);
-	write_to_kprobe_driverRead(probe_fd);
+
+	
+	write_to_kprobe_driverRead(probe_fd, 0x0);
+
+
 	sleep(5);
 	read_from_kprobe_driver(probe_fd);
 	sleep(20);
@@ -612,7 +581,6 @@ void* simulate_RWI_Tree1() {
 	printf("IN SIMULATE\n");
 	
 	int fun_choice = 0;
-	//fun_choice = rand() % 5;
 
 	while(1) {
 
@@ -686,7 +654,6 @@ void* simulate_RWI_Tree_Second() {
 	printf("IN SIMULATE Second\n");
 	
 	int fun_choice = 0;
-	//fun_choice = rand() % 5;
 
 	while(1) {
 
@@ -775,7 +742,13 @@ int main(int argc, char **argv) {
 	num_tree1_rw_ops = 0;
 	num_tree2_rw_ops = 0;
 
+
+
+
 	
+
+
+
 	// Populate first device
 	int did_populate_first_tree = -1;
 	did_populate_first_tree = pthread_create(&Thread_Populate_Tree1, NULL, populate_first_tree, NULL);
@@ -836,8 +809,7 @@ int main(int argc, char **argv) {
 	pthread_join(Thread_Populate_Tree1, NULL);
 	pthread_join(Thread_Populate_Tree2, NULL);
 
-	//printf("Display Tree 1\n");
-	//display_tree(tree1_fd);
+	
 
 
 	// Use random multithread operations on first tree
