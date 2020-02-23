@@ -323,7 +323,10 @@ int Pre_Handler(struct kprobe *probe, struct pt_regs *regs) {
 	//struct file *file = (struct file*) regs->ax;
 
 	// for 64 bit
-	struct file *file = (struct file*) regs->di;
+	//struct file *file = (struct file*) regs->di;
+
+	// for 32 bit
+	struct file *file = (struct file*) regs->ax;
 
 	// Get device data of the file
 	struct rbtree_dev *rbtree_devp = file->private_data;
@@ -347,6 +350,7 @@ int Pre_Handler(struct kprobe *probe, struct pt_regs *regs) {
 		printk("First Key = %d\n", rbKprobe_devp->probe_buffer.path.path[0].key);
 
 	}
+	
 	/*
 	struct rb_object *treeCursorKeyDataPair = container_of(node, struct rb_object, node);
 	int key = treeCursorKeyDataPair->key;

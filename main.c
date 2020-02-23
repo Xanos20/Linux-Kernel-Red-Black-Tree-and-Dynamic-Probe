@@ -20,8 +20,9 @@
 //#include <sodium.h>
 #include <sys/ioctl.h>
 #include <pthread.h>
+#include <sched.h>
 
-
+#define MAX_RW_OPS 15
 
 // for generating the path to the current node in the rb driver
 struct keydata {
@@ -203,7 +204,8 @@ int read_from_kprobe_driver(int probe_fd) {
 	printf("PATH LENGTH = %d\n", fromKernel->path.pathLength);
 	int i = 0;
 	i = fromKernel->path.pathLength;
-	for(int j = 0; j < i; j++) {
+	int j = 0;
+	for(; j < i; j++) {
 		printf("Path Key = %d\n", fromKernel->path.path[j].key);
 		printf("Path Data = %d\n", fromKernel->path.path[j].data);
 	}
@@ -231,77 +233,6 @@ int write_to_tree(int tree_fd) {
 	return 0;
 }
 
-// TREE
-int write_to_tree_hardcode2(int tree_fd) {
-
-	struct pair toDriver;
-	//toDriver.key = randombytes_uniform(10);
-	//toDriver.data = randombytes_uniform(10);
-	toDriver.key = 2;
-	toDriver.data = 3;
-	int res = 0;
-	printf("Sending to Kernel Write\n");
-	res = write(tree_fd, &toDriver, sizeof(struct pair));
-	if(res == -1) {
-		printf("Write to tree failed\n");
-		return -1;
-	}
-	return 0;
-}
-
-int write_to_tree_hardcode4(int tree_fd) {
-
-	struct pair toDriver;
-	//toDriver.key = randombytes_uniform(10);
-	//toDriver.data = randombytes_uniform(10);
-	toDriver.key = 4;
-	toDriver.data = 5;
-	int res;
-	printf("Sending to Kernel Write\n");
-	res = write(tree_fd, &toDriver, sizeof(struct pair));
-	if(res == -1) {
-		printf("Write to tree failed\n");
-		return -1;
-	}
-	return 0;
-}
-
-
-int write_to_tree_hardcode6(int tree_fd) {
-
-	struct pair toDriver;
-	//toDriver.key = randombytes_uniform(10);
-	//toDriver.data = randombytes_uniform(10);
-	toDriver.key = 6;
-	toDriver.data = 7;
-	int res;
-	printf("Sending to Kernel Write\n");
-	res = write(tree_fd, &toDriver, sizeof(struct pair));
-	if(res == -1) {
-		printf("Write to tree failed\n");
-		return -1;
-	}
-	return 0;
-}
-
-
-
-int write_to_tree_hardcode8(int tree_fd) {
-
-	struct pair toDriver;
-	//toDriver.key = randombytes_uniform(10);
-	//toDriver.data = randombytes_uniform(10);
-	toDriver.key = 8;
-	toDriver.data = 9;
-	int res;
-	printf("Sending to Kernel Write\n");
-	res = write(tree_fd, &toDriver, sizeof(struct pair));
-	if(res == -1) {
-		printf("Write to tree failed\n");
-		return -1;
-	}
-	return 0;
-}
 
 
 
@@ -338,6 +269,21 @@ ting  from  the object with the maximal key.
 Otherwise, -1 is returned in the kernel and errno is set to EINVAL.
 
 */
+
+
+int display_tree(int tree_fd) {
+	int ret;
+	ret = ioctl(tree_fd, 2);
+	if(ret != 0) {
+		fprintf(stderr, "Ioctl Command Did Not Work With Code = %d\n", ret);
+		exit(-1);
+	}
+	printf("Displayed Contents\n");
+	return 0;
+}
+
+
+
 int change_tree_read_order(int tree_fd, int read_order) {
 	int ret;
 	ret = ioctl(tree_fd, read_order);
@@ -394,6 +340,7 @@ pthread_attr_t Thread_RW_Tree1_First_Attr;
 
 pthread_t Thread_RW_Tree1_Second;
 pthread_attr_t Thread_RW_Tree1_Second_Attr;
+struct sched_param param_second;
 
 
 
@@ -411,55 +358,128 @@ pthread_t Thread_Usr_Controlled_Probe;
 pthread_attr_t Thread_Usr_Controlled_Probe_Attr;
 
 
-
+// Ensure userspace program can connect and disconnect from drivers
 void open_file_descriptors() {
 	tree1_fd = open("/dev/rbt530_dev", O_RDWR);
 	if (tree1_fd < 0 ){
-		fprintf(stderr, "Can not open device file.\n");		
+		fprintf(stderr, "Can not open device file, error = %d\n", tree1_fd);		
 		exit(-1);
 	}
 	
 	tree2_fd = open("/dev/rbt530_dev2", O_RDWR);
 	if (tree2_fd < 0 ){
-		fprintf(stderr, "Can not open device file.\n");		
+		fprintf(stderr, "Can not open device file, error = %d\n", tree2_fd);		
 		exit(-1);
 	}
 	
 	probe_fd = open("/dev/RBprobe", O_RDWR);
 	if (probe_fd < 0 ){
-		fprintf(stderr, "Can not open device file.\n");		
+		fprintf(stderr, "Can not open device file, error = %d\n", probe_fd);		
 		exit(-1);
 	}
 	return;
 }
 
 int close_file_descriptors() {
-	printf("Close All File Descriptors\n");
 
 	int ret = 0;
 
 	ret = close(tree1_fd);
 	if(ret != 0) {
-		fprintf(stderr, "tree1 not closed correctly\n");
+		fprintf(stderr, "tree1 not closed correctly, error = %d\n", ret);
 		exit(-1);
 	}
 
 	ret = close(tree2_fd);
 	if(ret != 0) {
-		fprintf(stderr, "tree2 not closed correctly\n");
+		fprintf(stderr, "tree2 not closed correctly, error = %d\n", ret);
 		exit(-1);
 	}
 
 	ret = close(probe_fd);
 	if(ret != 0) {
-		fprintf(stderr, "probe_fd not closed correctly\n");
+		fprintf(stderr, "probe_fd not closed correctly, error = %d\n", ret);
 		exit(-1);
 	}
+
+	printf("Closed All File Descriptors\n");
 
 	return 0;
 }
 
 
+// Ensure Locks Are Initialized and Deinitialized
+void init_locks() {
+	int verify_mutex_created = -1;
+	verify_mutex_created = pthread_mutex_init(&lock_tree1_rw_ops, NULL);
+	if(verify_mutex_created != 0) {
+		fprintf(stderr, "First lock not created, error = %d\n", verify_mutex_created);
+		exit(-1);
+	}
+	verify_mutex_created = pthread_mutex_init(&lock_tree2_rw_ops, NULL);
+	if(verify_mutex_created != 0) {
+		fprintf(stderr, "Second lock not created, error = %d\n", verify_mutex_created);
+	}
+	return;
+
+}
+
+void clear_locks() {
+	int verify_mutex_cleared = -1;
+	verify_mutex_cleared = pthread_mutex_destroy(&lock_tree1_rw_ops);
+	if(verify_mutex_cleared != 0) {
+		fprintf(stderr, "First pthread mutext not cleared, error = %d\n", verify_mutex_cleared);
+		exit(-1);
+	}
+	verify_mutex_cleared = pthread_mutex_destroy(&lock_tree2_rw_ops);
+	if(verify_mutex_cleared != 0) {
+		fprintf(stderr, "Second pthread mutex not cleared , error = %d\n", verify_mutex_cleared);
+		exit(-1);
+	}
+	return;
+}
+
+
+// Thread fun for populating second tree
+void* populate_second_tree() {
+	printf("Initialize Thread_Populate_Tree2\n");
+
+	int key = 1;
+	for(; key < 50 + 1; key++) {
+		// generate 50 key data pairs where the key=data
+		int verify = 0;
+		int data = key;
+		
+		verify = write_pair_to_tree(tree2_fd, key, data);
+		if(verify != 0) {
+			fprintf(stderr, "populate_second_tree failed with %d\n", verify);
+			exit(-1);
+		}
+	}
+
+	return (void*) 0;
+}
+
+
+// Thread fun for populating first tree
+void* populate_first_tree() {
+	printf("Initialize Thread_Populate_Tree1\n");
+	int key = 1;
+	for(; key < 50 + 1; key++) {
+		// generate 50 key data pairs where the key=data
+		int verify = 0;
+		int data = key;
+
+		verify = write_pair_to_tree(tree1_fd, key, data);
+		if(verify != 0) {
+			fprintf(stderr, "populate_first_tree failed with %d\n", verify);
+			exit(-1);
+		}
+	}
+
+
+	return (void*) 0;
+}
 
 /*
 // Kprobe Write Write
@@ -480,93 +500,45 @@ int close_file_descriptors() {
 
 */
 /*
-void* simulate_RWI_T1() {
 
-	int fun_choice = 0;
-	fun_choice = rand() % 9;
+void* interact_with_probes() {
+	char inp[2];
+	unsigned int offset;
 
-	while(true) {
+	while(1) {
+		printf("\n");
+		fgets(inp, 1, stdin);
+		if(inp[0] = 'w') {
+			printf("Provide Flag");
 
-		if(num_tree1_rw_ops > 50 && num_tree2_rw_ops == 50) {
-			return (void*) 0;
+			printf("Provide Offset (Unsigned Int) \n");
+
 		}
 
-		// IOCTL Read Ascending
-		if(fun_choice == 0) {
-			change_tree_read_order(tree1_fd, 0);
-		} 
-		else if(fun_choice == 1) {
-			change_tree_read_order(tree2_fd, 0);
-		}
-
-		// IOCTL READ DESCENDING
-		else if(fun_choice == 2) {
-			change_tree_read_order(tree1_fd, 1);
-		} 
-		else if(fun_choice == 3) {
-			change_tree_read_order(tree2_fd, 1);
-		}
-
-		// RbTree Write
-		else if(fun_choice == 4 && ) {
-			// write tree 1
-			write_to_tree(tree1_fd);
-
-			pthread_mutex_lock(&lock_tree1_rw_ops);
-			num_tree1_rw_ops += 1;
-			pthread_mutex_unlock(&lock_tree1_rw_ops);
-		}
-		else if(fun_choice == 5) {
-			// write tree 2
-			write_to_tree(tree2_fd);
-
-			pthread_mutex_lock(&lock_tree2_rw_ops);
-			num_tree2_rw_ops += 1;
-			pthread_mutex_unlock(&lock_tree2_rw_ops);
-		}
-
-		// RbTree Read
-		else if(fun_choice == 6) {
-			// read tree 1
-			read_from_tree(tree1_fd);
-
-			pthread_mutex_lock(&lock_tree1_rw_ops);
-			num_tree1_rw_ops += 1;
-			pthread_mutex_unlock(&lock_tree1_rw_ops);
-		}
-		else if(fun_choice == 7) {
-			// read tree 2
-			read_from_tree(tree2_fd);
-
-			pthread_mutex_lock(&lock_tree2_rw_ops);
-			num_tree2_rw_ops += 1;
-			pthread_mutex_unlock(&lock_tree2_rw_ops);
-		}
-
-		// Sleep
-		else {
-			sleep(1);
-		}
 	}
-
-	return (void*) 0;
 
 }
 */
 
-void* simulate_RWI() {
+void* simulate_RWI_Tree1() {
 	printf("IN SIMULATE\n");
 	
 	int fun_choice = 0;
-	fun_choice = rand() % 5;
+	//fun_choice = rand() % 5;
 
 	while(1) {
+
+		// protect the rand variable
+		pthread_mutex_lock(&lock_tree1_rw_ops);
 		fun_choice = rand() % 6;
+		pthread_mutex_unlock(&lock_tree1_rw_ops);
+
 
 		printf("fun_choice = %d\n", fun_choice);
 		printf("total ops rw = %d\n", num_tree1_rw_ops);
 
-		if(num_tree1_rw_ops >= 50) {
+		if(num_tree1_rw_ops >= MAX_RW_OPS) {
+			//change_tree_read_order(tree1_fd, 2);
 			return (void*) 0;
 		}
 
@@ -608,6 +580,81 @@ void* simulate_RWI() {
 					change_tree_read_order(tree1_fd, 1);
 				}
 			}
+		}
+		
+		// Sleep
+		else {
+			sleep(1);
+		}
+	}
+	//printf("Print Tree\n");
+	return (void*) 0;
+
+}
+
+
+
+
+void* simulate_RWI_Tree_Second() {
+	printf("IN SIMULATE Second\n");
+	
+	int fun_choice = 0;
+	//fun_choice = rand() % 5;
+
+	while(1) {
+
+		// protect the rand variable
+		pthread_mutex_lock(&lock_tree2_rw_ops);
+		fun_choice = rand() % 6;
+		pthread_mutex_unlock(&lock_tree2_rw_ops);
+
+
+		printf("fun_choice = %d\n", fun_choice);
+		printf("total ops rw = %d\n", num_tree2_rw_ops);
+
+		if(num_tree2_rw_ops >= MAX_RW_OPS) {
+			//change_tree_read_order(tree1_fd, 2);
+			return (void*) 0;
+		}
+
+		// IOCTL Read Ascending
+		if(fun_choice == 0) {
+			change_tree_read_order(tree2_fd, 0);
+		} 
+
+		// IOCTL READ DESCENDING
+		else if(fun_choice == 1) {
+			change_tree_read_order(tree2_fd, 1);
+		} 
+		
+		// RbTree Write
+		else if(fun_choice == 2) {
+			// write tree 1
+			write_to_tree(tree2_fd);
+
+			pthread_mutex_lock(&lock_tree2_rw_ops);
+			num_tree2_rw_ops += 1;
+			pthread_mutex_unlock(&lock_tree2_rw_ops);
+		}
+
+		// RbTree Read
+		else if(fun_choice == 3) {
+			// read tree 1
+			int chk_read = -1;
+			chk_read = read_from_tree(tree2_fd);
+			pthread_mutex_lock(&lock_tree2_rw_ops);
+			num_tree2_rw_ops += 1;
+			pthread_mutex_unlock(&lock_tree2_rw_ops);
+			if(chk_read == -1) {
+				printf("Node is Empty, Change Read Order\n");
+				int j = 0;
+				j = rand() % 2;
+				if(j == 0) {
+					change_tree_read_order(tree2_fd, 0);
+				} else {
+					change_tree_read_order(tree2_fd, 1);
+				}
+			}
 
 			
 		}
@@ -617,40 +664,11 @@ void* simulate_RWI() {
 			sleep(1);
 		}
 	}
-	
+	//printf("Print Tree\n");
 	return (void*) 0;
 
 }
 
-void* simulate_RWI_finish() {
-	printf("Finished simulation\n");
-	return (void*) 0;
-}
-
-
-
-void* populate_second_tree() {
-	printf("Initialize Thread_Populate_Tree2\n");
-
-	for(int key = 1; key < 50 + 1; key++) {
-		// generate 50 key data pairs where the key=data
-		int verify = 0;
-		int data = key;
-		
-		verify = write_pair_to_tree(tree2_fd, key, data);
-		if(verify != 0) {
-			fprintf(stderr, "populate_second_tree failed with %d\n", verify);
-			exit(-1);
-		}
-	}
-
-	return (void*) 0;
-}
-
-void* populate_second_tree_finished() {
-	printf("Second Tree Populated\n");
-	return (void*) 0;
-}
 
 
 
@@ -658,71 +676,43 @@ void* populate_second_tree_finished() {
 
 
 
-void* populate_first_tree() {
-	printf("Initialize Thread_Populate_Tree1\n");
-
-	for(int key = 1; key < 50 + 1; key++) {
-		// generate 50 key data pairs where the key=data
-		int verify = 0;
-		int data = key;
-
-		verify = write_pair_to_tree(tree1_fd, key, data);
-		if(verify != 0) {
-			fprintf(stderr, "populate_first_tree failed with %d\n", verify);
-			exit(-1);
-		}
-	}
-
-
-	return (void*) 0;
-}
-
-void* populate_first_tree_finished() {
-	printf("First Tree Populated\n");
-	return (void*) 0;
-}
-
-
-
-
-int main(int argc, char **argv)
-{
+int main(int argc, char **argv) {
 	
 	// Open Devices
 	open_file_descriptors();
 
+	// Initialize locks 
+	init_locks();
 
-	printf("Files REACHED\n");
-
+	// Initialize current RW Ops for each tree
 	num_tree1_rw_ops = 0;
 	num_tree2_rw_ops = 0;
 
-	// For the random delay for starting threads
-	int sleep_for = 0;
 	
-
-
 	// Populate first device
 	int did_populate_first_tree = -1;
-	did_populate_first_tree = pthread_create(&Thread_Populate_Tree1, NULL, populate_first_tree, populate_first_tree_finished);
+	did_populate_first_tree = pthread_create(&Thread_Populate_Tree1, NULL, populate_first_tree, NULL);
 
 	if(did_populate_first_tree != 0) {
-		fprintf(stderr, "First tree was not populated\n");
+		fprintf(stderr, "First tree was not populated, error = %d\n", did_populate_first_tree);
 		exit(-1);
 	}
+
 
 	// Populate second device
 	int did_populate_second_tree = -1;
-	did_populate_second_tree = pthread_create(&Thread_Populate_Tree2, NULL, populate_second_tree, populate_second_tree_finished);
+	did_populate_second_tree = pthread_create(&Thread_Populate_Tree2, NULL, populate_second_tree, NULL);
 
 	if(did_populate_second_tree != 0) {
-		fprintf(stderr, "Second tree was not populated\n");
+		fprintf(stderr, "Second tree was not populated, error = %d\n", did_populate_second_tree);
 		exit(-1);
 	}
 
-	// Join both threads
+	// Join both populate threads
 	pthread_join(Thread_Populate_Tree1, NULL);
 	pthread_join(Thread_Populate_Tree2, NULL);
+
+
 
 	// Use random multithread operations on first tree
 	/*
@@ -736,13 +726,13 @@ int main(int argc, char **argv)
 	printf("Check First Thread\n");
 	int did_first_thread_rwi_tree = -1;
 	int verify_first_attr = -1;
-	/*
+	
 	verify_first_attr = pthread_attr_init(&Thread_RW_Tree1_First_Attr);
 	if(verify_first_attr != 0) {
 		fprintf(stderr, "verify_first_attr failed with code = %d\n", verify_first_attr);
 		exit(-1);
 	}
-	*/
+	
 	printf("Check Attr Policy\n");
 
 	verify_first_attr = pthread_attr_setschedpolicy(&Thread_RW_Tree1_First_Attr, SCHED_FIFO);
@@ -750,17 +740,133 @@ int main(int argc, char **argv)
 		fprintf(stderr, "verify_first_attr with FIFO failed with code = %d\n", verify_first_attr);
 		exit(-1);
 	}
-	printf("Check pthread\n");
 
-	did_first_thread_rwi_tree = pthread_create(&Thread_RW_Tree1_First, &Thread_RW_Tree1_First_Attr, simulate_RWI, simulate_RWI_finish);
+	// Higher Priority Thread
+	
+	did_first_thread_rwi_tree = pthread_create(&Thread_RW_Tree1_First, &Thread_RW_Tree1_First_Attr, simulate_RWI_Tree1, NULL);
 	if(did_first_thread_rwi_tree != 0) {
 		fprintf(stderr, "did_first_thread_rwi_tree code = %d\n", did_first_thread_rwi_tree);
 		exit(-1);
 	}
 	printf("Made pthread\n");
-	pthread_join(Thread_RW_Tree1_First, NULL);
+	
 
+
+	//////////////////////////////////////////////////////////////
+	printf("Check Second Thread\n");
+	// Set up the other thread
+
+	int did_second_thread_rwi_tree = -1;
+	int verify_second_attr = -1;
+
+
+
+	// inherit scheduling attributes from the creating thread
+	verify_second_attr = pthread_attr_setinheritsched(&Thread_RW_Tree1_Second_Attr, PTHREAD_INHERIT_SCHED);
+	if(verify_second_attr != 0) {
+		fprintf(stderr, "verify_second_attr inherit schedule failed with code = %d\n", verify_second_attr);
+		exit(-1);
+	}
+
+	// set the new scheduling param
 	/*
+	param_second.sched_priority = 40;
+	verify_second_attr = pthread_attr_setschedparam(&Thread_RW_Tree1_Second_Attr, &param_second);
+	if(verify_second_attr != 0) {
+		fprintf(stderr, "verify_second_attr for setschedparam failed with code = %d\n", verify_second_attr);
+		exit(-1);
+	}
+	*/
+
+	// Create Lower Priority Thread
+	did_second_thread_rwi_tree = pthread_create(&Thread_RW_Tree1_Second, &Thread_RW_Tree1_Second_Attr, simulate_RWI_Tree1, NULL);
+	if(did_second_thread_rwi_tree != 0) {
+		fprintf(stderr, "did_second_thread_rwi_tree code = %d\n", did_second_thread_rwi_tree);
+		exit(-1);
+	}
+
+	pthread_join(Thread_RW_Tree1_First, NULL);
+	pthread_join(Thread_RW_Tree1_Second, NULL);
+
+	printf("Simulated First Tree With Two Thread\n");
+
+
+
+
+	// Create Thread For Second Tree
+	/*
+	simulate_RWI_Tree_Second
+
+	// Read and Write and IOCTL Random Ops In TREE 2
+	pthread_t Thread_RW_Tree2_Third;
+	pthread_attr_t Thread_RW_Tree2_Third_Attr;
+
+	*/
+	
+	printf("Check Third Thread\n");
+	int did_third_thread = -1;
+	int verify_third_attr = -1;
+	
+	verify_third_attr = pthread_attr_init(&Thread_RW_Tree2_Third_Attr);
+	if(verify_third_attr != 0) {
+		fprintf(stderr, "verify_third_attr failed with code = %d\n", verify_third_attr);
+		exit(-1);
+	}
+	
+	printf("Check Third Attr Policy\n");
+
+	verify_third_attr = pthread_attr_setschedpolicy(&Thread_RW_Tree2_Third_Attr, SCHED_FIFO);
+	if(verify_third_attr != 0) {
+		fprintf(stderr, "verify_third_attr with FIFO failed with code = %d\n", verify_third_attr);
+		exit(-1);
+	}
+
+	// Higher Priority Thread
+	
+	did_third_thread = pthread_create(&Thread_RW_Tree2_Third, &Thread_RW_Tree2_Third_Attr, simulate_RWI_Tree_Second, NULL);
+	if(did_third_thread != 0) {
+		fprintf(stderr, "did_third_thread code = %d\n", did_third_thread);
+		exit(-1);
+	}
+	printf("Made third pthread\n");
+
+
+	/////////////////////////////////////////////////////////////
+
+	// Join all remaining pthreads
+	pthread_join(Thread_RW_Tree2_Third, NULL);
+
+	printf("All pthreads joined\n");
+
+	printf("Write to kprobe driver\n");
+	
+	write_to_kprobe_driver(probe_fd);
+	write_pair_to_tree(tree1_fd, 200, 200);	
+	read_from_kprobe_driver(probe_fd);
+
+	// Clear mutexes
+	clear_locks();
+	
+	return close_file_descriptors();
+}
+
+
+
+
+
+
+
+
+
+
+
+//printf("Remove the kprobe\n");
+	//write_to_kprobe_driver_remove(probe_fd);
+	//write_to_kprobe_driver_removeRead(probe_fd);
+
+
+
+/*
 	printf("Write to kprobe driver\n");
 	write_to_kprobe_driver(probe_fd);
 	write_to_tree_hardcode2(tree1_fd);
@@ -794,11 +900,3 @@ int main(int argc, char **argv)
 	printf("Write to tree third time\n");
 	write_to_tree(tree1_fd);
 	*/
-
-	//printf("Remove the kprobe\n");
-	//write_to_kprobe_driver_remove(probe_fd);
-	//write_to_kprobe_driver_removeRead(probe_fd);
-	
-	
-	return close_file_descriptors();
-}

@@ -36,14 +36,6 @@
 https://www.infradead.org/~mchehab/kernel_docs/unsorted/rbtree.html
 */
 
-/* per device structure */
-//struct rbtree_dev {
-//	struct cdev cdev;               /* The cdev structure */
-//	char name[20];                  /* Name of device*/
-//	char in_string[256];			/* buffer for the input string */
-//	int current_write_pointer;
-//} *rbtree_devp;
-
 typedef struct keydata_to_read {
 	int key;
 	int data;
@@ -61,6 +53,7 @@ typedef struct rb_object{
 } rb_object_t;
 
 
+// The actual device struct for first tree
 struct rbtree_dev {
 	struct cdev cdev;               /* The cdev structure */
 	char name[20];                  /* Name of device*/
@@ -71,7 +64,7 @@ struct rbtree_dev {
     int readOrderDevice;
 } *rbtree_devp;
 
-
+// The actual device struct for second tree
 struct rbtree_dev_second {
 	struct cdev cdev;               /* The cdev structure */
 	char name[20];                  /* Name of device*/
@@ -81,30 +74,20 @@ struct rbtree_dev_second {
     spinlock_t spinlockDevice;
     int readOrderDevice;
 } *rbtree_devp_second;
-/*
-struct device_metadata {
-	static dev_t rbtree_dev_number;      
-	struct class *rbtree_dev_class;          
-	static struct device *rbtree_dev_device;
 
-};
-*/
 
-//struct device_metadata device1;
-//struct device_metadata device2;
 
 // sudo cat /proc/kallsyms | grep rbtree_driver_write
 
-
+// For first device
 static dev_t rbtree_dev_number;      
 struct class *rbtree_dev_class;           
 static struct device *rbtree_dev_device;
 
+// For second device
 static dev_t rbtree_dev_number_second;      
 struct class *rbtree_dev_class_second;           
 static struct device *rbtree_dev_device_second;
-
-
 
 
 
@@ -246,7 +229,9 @@ ssize_t rbtree_driver_write(struct file *file, const char *buf,
 	// User should provide rb_object
 	//printk("DRDRIVER WRITE AROUND = %p\n", (void*) rbtree_driver_write);
 	//printk("Write pid = %d\n", current->pid);
-	struct file* f = file;
+
+	// Declaring this file pointer is for locating the file pointer in the x86 code
+	volatile struct file* f = file;
 
 
 	
@@ -373,13 +358,36 @@ long rbtree_driver_unlocked_ioctl(struct file *file, unsigned int ioctl_num, uns
 	printk("ioctl number = %d\n", ioctl_num);
 
 
-
 	if(ioctl_num == 0) {
 		rbtree_devp->readOrderDevice = 0;
 	} else if(ioctl_num == 1) {
 		rbtree_devp->readOrderDevice = 1;
-	} else {
-		printk("ioctl must have 0 or 1 as a parameter\n");
+	} /*
+	else if(ioctl_num == 2) {
+
+		struct rb_node *node;
+		if(rbtree_devp->readOrderDevice == 0) {
+			printk("Displaying Tree Ascending Order\n");
+			for (node = rb_first(&(rbtree_devp->mytree)); node != NULL; node = rb_next(node)) {
+    			printk("key=%d\n", rb_entry(node, struct rb_object, node)->key);
+    			if(rb_next(node) == NULL) {
+    				break;
+    			}
+    		}
+		} else {
+			printk("Displaying Tree DESCENDING Order\n");
+
+    		for (node = rb_last(&(rbtree_devp->mytree)); node != NULL; node = rb_prev(node)) {
+    			printk("key=%d\n", rb_entry(node, struct rb_object, node)->key);
+    			if(rb_prev(node) == NULL) {
+    				break;
+    			}
+    		}
+		}	
+	}
+	*/
+	else {
+		printk("ioctl must have 0 or 1 as a parameter to set read order or 2 to displaying all contents\n");
 		// TODO: search how to set up error call ioctl
 		// UNLOCK
 		spin_unlock(&(rbtree_devp->spinlockDevice));
@@ -578,11 +586,11 @@ ssize_t rbtree_driver_read(struct file *file, char *buf,
 				return PTR_ERR(node);
 			}
 			// Update Variables
-			//count = count - sizeof(struct keydata_to_read);
 			bytes_read = bytes_read + sizeof(struct keydata_to_read);
 
 			// UNLOCK
 			spin_unlock(&(rbtree_devp->spinlockDevice));
+
 			// Most read functions return the number of bytes put into the buffer
 			return bytes_read;
 		}
@@ -609,7 +617,7 @@ ssize_t rbtree_driver_read(struct file *file, char *buf,
 
 
 
-/* File operations structure. Defined in linux/fs.h */
+/* File operations structure for first device. Defined in linux/fs.h */
 static struct file_operations rbtree_fops = {
     .owner		= THIS_MODULE,           /* Owner */
     .open		= rbtree_driver_open,        /* Open method */
@@ -621,7 +629,7 @@ static struct file_operations rbtree_fops = {
 
 
 
-/* File operations structure. Defined in linux/fs.h */
+/* File operations structure for second device. Defined in linux/fs.h */
 static struct file_operations rbtree_fops_second = {
     .owner		= THIS_MODULE,           /* Owner */
     .open		= rbtree_driver_open,        /* Open method */
@@ -642,16 +650,9 @@ static struct file_operations rbtree_fops_second = {
  */
 int __init rbtree_driver_init(void)
 {
-	/* TODO: Create two devices!!!!!!!!!!!! */
 	int ret;
 	int time_since_boot;
 
-	// Initialize global semaphore to prevent race conditions with the write method
-	//void init_MUTEX(&SEM);
-	//spin_lock_init(&(rbtree_devp->spinlockDevice));
-
-	// set default read_order value
-	//READ_ORDER = 0;
 
 	// Request dynamic allocation of a device major number /
 	if (alloc_chrdev_region(&rbtree_dev_number, 0, 1, DEVICE_NAME) < 0) {
@@ -720,8 +721,7 @@ int __init rbtree_driver_init(void)
 	time_since_boot=(jiffies-INITIAL_JIFFIES)/HZ; 
 	sprintf(rbtree_devp->in_string, "Hi %s, this machine has been on for %d seconds", user_name, time_since_boot);
 	
-	// Initialize root to be
-	//rbtree_devp->mytree = NULL;
+	
 
 	printk("rbtree driver initialized.\n'%s'\n",rbtree_devp->in_string);
 	//printk("rbtree driver initialized.\n'%s'\n",rbtree_devp->mytree);
@@ -801,8 +801,7 @@ int __init rbtree_driver_init(void)
 	time_since_boot=(jiffies-INITIAL_JIFFIES)/HZ; 
 	sprintf(rbtree_devp_second->in_string, "Hi %s, this machine has been on for %d seconds", user_name, time_since_boot);
 	
-	// Initialize root to be
-	//rbtree_devp->mytree = NULL;
+	
 
 	printk("rbtree driver SECOND initialized.\n'%s'\n",rbtree_devp_second->in_string);
 	
