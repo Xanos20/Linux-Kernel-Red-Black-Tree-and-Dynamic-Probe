@@ -4,6 +4,8 @@
 
 */
 
+#include <sys/ioctl.h>
+
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -69,7 +71,7 @@ int write_to_kprobe_driver(int probe_fd) {
 
 	//00000000000004d0
 	//0x00000500
-	kpair.offsetInsideFunction = 0x00000500;
+	kpair.offsetInsideFunction = 0x0;
 
 	int kprobeWrite;
 	kprobeWrite = write(probe_fd, &kpair, sizeof(struct kprobe_pair));

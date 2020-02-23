@@ -30,7 +30,11 @@ NOTE
 - sudo ./main
 
 7)
-- One thread in the userspace program can read in user input for creating kprobes
+- One thread in the userspace program can read in user input for creating/removing kprobes
+- From Professor Lee -> The user is fully responsible for placing the kprobes at the correct x86 instruction
+- From TA Gao -> he recommended using flag=1 for writing the kprobe to the rbtree_write fun
+	and flag=2 for writing the kprobe to the rbtree_read fun
+- User will pass an int flag and unsigned int offset for writing/removing kprobes
 
 
 

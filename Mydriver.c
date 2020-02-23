@@ -774,7 +774,7 @@ int __init rbtree_driver_init(void)
 	// Initialize rb_tree root
 	rbtree_devp_second->mytree = RB_ROOT;
 
-	// Initialize treeCursor to be the first element in
+	// Initialize treeCursor 
 	rbtree_devp_second->treeCursor = NULL;
 
 	// Connect the major/minor number to the cdev /

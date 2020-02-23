@@ -297,7 +297,8 @@ int Pre_Handler(struct kprobe *probe, struct pt_regs *regs) {
 
 	// Retrieve and store the corresponding address of the kprobe
 	//rbKprobe_devp->probe_buffer.addr = (void*) probe->addr;
-	unsigned long theAddr = (unsigned long) probe->addr;
+	unsigned long theAddr = 0;
+	theAddr = (unsigned long) probe->addr;
 
 	printk("theAddr = %lx\n", theAddr);
 	rbKprobe_devp->probe_buffer.addr = theAddr;
@@ -307,33 +308,35 @@ int Pre_Handler(struct kprobe *probe, struct pt_regs *regs) {
 	//kprobe_opcode_t* addrToReturn = (void*) probe->addr;
 
 	// Get Time Stamp Counter
-	unsigned long long tsc = get_native_read_tsc();
+	unsigned long long tsc;
+	tsc = get_native_read_tsc();
 	//unsigned long long tsc = rdtsc();
 	printk("TSC = %lld\n", tsc);
 	//toReturnToRead.tsc = tsc;
 	rbKprobe_devp->probe_buffer.tsc = tsc;
 
 	// Get PID
-	pid_t processID = current->pid;
+	pid_t processID;
+	processID = current->pid;
 	//toReturnToRead.pid = processID;
 	rbKprobe_devp->probe_buffer.pid = processID;
 	printk("Pid = %d\n", processID);
 
 	// TODO: Get all rb objects from the file pointer should be in the eax register
-	//struct file *file = (struct file*) regs->ax;
 
 	// for 64 bit
-	//struct file *file = (struct file*) regs->di;
+	struct file *file = (struct file*) regs->di;
 
 	// for 32 bit
-	struct file *file = (struct file*) regs->ax;
+	//struct file *file = (struct file*) regs->ax;
 
 	// Get device data of the file
 	struct rbtree_dev *rbtree_devp = file->private_data;
 	printk("readOrderDevice = %d\n", rbtree_devp->readOrderDevice);
 	
 	// Get the root of the corresponding rb tree
-	struct rb_root mytree = rbtree_devp->mytree;
+	struct rb_root mytree;
+	mytree = rbtree_devp->mytree;
 
 	// The current node in the rb tree
 	struct rb_node* node = rbtree_devp->treeCursor;
@@ -354,7 +357,7 @@ int Pre_Handler(struct kprobe *probe, struct pt_regs *regs) {
 	/*
 	struct rb_object *treeCursorKeyDataPair = container_of(node, struct rb_object, node);
 	int key = treeCursorKeyDataPair->key;
-	/*
+	
 	// generate the path by reading first 10 elements to the path to treeCursor
 	rbKprobe_devp->probe_buffer.path = generate_path(&mytree, key);
 	*/
@@ -397,7 +400,7 @@ ssize_t rbKprobe_driver_write(struct file *file, const char *buf,
 	// User should provide rb_object
 	struct rbKprobe_dev *rbKprobe_devp = file->private_data;
 	printk("RBPROBE WRITE\n");
-	printk("Size of File Pointer = %ld\n", sizeof(struct file*));
+	//printk("Size of File Pointer = %ld\n", sizeof(struct file*));
 
 	// LOCK
 	spin_lock(&(rbKprobe_devp->spinlockDevice));

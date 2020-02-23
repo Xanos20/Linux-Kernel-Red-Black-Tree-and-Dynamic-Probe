@@ -1,0 +1,1852 @@
+
+Mydriver.ko:     file format elf32-i386
+
+
+Disassembly of section .text:
+
+00000000 <might_fault>:
+
+#if defined(CONFIG_MMU) && \
+	(defined(CONFIG_PROVE_LOCKING) || defined(CONFIG_DEBUG_ATOMIC_SLEEP))
+void might_fault(void);
+#else
+static inline void might_fault(void) { }
+   0:	55                   	push   ebp
+   1:	89 e5                	mov    ebp,esp
+   3:	5d                   	pop    ebp
+   4:	c3                   	ret    
+
+00000005 <PTR_ERR>:
+{
+	return (void *) error;
+}
+
+static inline long __must_check PTR_ERR(__force const void *ptr)
+{
+   5:	55                   	push   ebp
+   6:	89 e5                	mov    ebp,esp
+   8:	83 ec 04             	sub    esp,0x4
+   b:	89 45 fc             	mov    DWORD PTR [ebp-0x4],eax
+	return (long) ptr;
+   e:	8b 45 fc             	mov    eax,DWORD PTR [ebp-0x4]
+}
+  11:	c9                   	leave  
+  12:	c3                   	ret    
+
+00000013 <IS_ERR>:
+
+static inline bool __must_check IS_ERR(__force const void *ptr)
+{
+  13:	55                   	push   ebp
+  14:	89 e5                	mov    ebp,esp
+  16:	83 ec 04             	sub    esp,0x4
+  19:	89 45 fc             	mov    DWORD PTR [ebp-0x4],eax
+	return IS_ERR_VALUE((unsigned long)ptr);
+  1c:	8b 45 fc             	mov    eax,DWORD PTR [ebp-0x4]
+  1f:	3d 00 f0 ff ff       	cmp    eax,0xfffff000
+  24:	0f 97 c0             	seta   al
+  27:	0f b6 c0             	movzx  eax,al
+  2a:	85 c0                	test   eax,eax
+  2c:	0f 95 c0             	setne  al
+}
+  2f:	c9                   	leave  
+  30:	c3                   	ret    
+
+00000031 <spinlock_check>:
+/*
+ * Map the spin_lock functions to the raw variants for PREEMPT_RT=n
+ */
+
+static inline raw_spinlock_t *spinlock_check(spinlock_t *lock)
+{
+  31:	55                   	push   ebp
+  32:	89 e5                	mov    ebp,esp
+  34:	83 ec 04             	sub    esp,0x4
+  37:	89 45 fc             	mov    DWORD PTR [ebp-0x4],eax
+	return &lock->rlock;
+  3a:	8b 45 fc             	mov    eax,DWORD PTR [ebp-0x4]
+}
+  3d:	c9                   	leave  
+  3e:	c3                   	ret    
+
+0000003f <spin_lock>:
+	spinlock_check(_lock);				\
+	raw_spin_lock_init(&(_lock)->rlock);		\
+} while (0)
+
+static inline void spin_lock(spinlock_t *lock)
+{
+  3f:	55                   	push   ebp
+  40:	89 e5                	mov    ebp,esp
+  42:	83 ec 04             	sub    esp,0x4
+  45:	89 45 fc             	mov    DWORD PTR [ebp-0x4],eax
+	raw_spin_lock(&lock->rlock);
+}
+  48:	c9                   	leave  
+  49:	c3                   	ret    
+
+0000004a <spin_unlock>:
+do {									\
+	raw_spin_lock_irqsave_nested(spinlock_check(lock), flags, subclass); \
+} while (0)
+
+static inline void spin_unlock(spinlock_t *lock)
+{
+  4a:	55                   	push   ebp
+  4b:	89 e5                	mov    ebp,esp
+  4d:	83 ec 04             	sub    esp,0x4
+  50:	89 45 fc             	mov    DWORD PTR [ebp-0x4],eax
+	raw_spin_unlock(&lock->rlock);
+}
+  53:	c9                   	leave  
+  54:	c3                   	ret    
+
+00000055 <rb_link_node>:
+extern void rb_replace_node(struct rb_node *victim, struct rb_node *new, 
+			    struct rb_root *root);
+
+static inline void rb_link_node(struct rb_node * node, struct rb_node * parent,
+				struct rb_node ** rb_link)
+{
+  55:	55                   	push   ebp
+  56:	89 e5                	mov    ebp,esp
+  58:	83 ec 0c             	sub    esp,0xc
+  5b:	89 45 fc             	mov    DWORD PTR [ebp-0x4],eax
+  5e:	89 55 f8             	mov    DWORD PTR [ebp-0x8],edx
+  61:	89 4d f4             	mov    DWORD PTR [ebp-0xc],ecx
+	node->__rb_parent_color = (unsigned long)parent;
+  64:	8b 55 f8             	mov    edx,DWORD PTR [ebp-0x8]
+  67:	8b 45 fc             	mov    eax,DWORD PTR [ebp-0x4]
+  6a:	89 10                	mov    DWORD PTR [eax],edx
+	node->rb_left = node->rb_right = NULL;
+  6c:	8b 45 fc             	mov    eax,DWORD PTR [ebp-0x4]
+  6f:	c7 40 04 00 00 00 00 	mov    DWORD PTR [eax+0x4],0x0
+  76:	8b 45 fc             	mov    eax,DWORD PTR [ebp-0x4]
+  79:	8b 50 04             	mov    edx,DWORD PTR [eax+0x4]
+  7c:	8b 45 fc             	mov    eax,DWORD PTR [ebp-0x4]
+  7f:	89 50 08             	mov    DWORD PTR [eax+0x8],edx
+
+	*rb_link = node;
+  82:	8b 45 f4             	mov    eax,DWORD PTR [ebp-0xc]
+  85:	8b 55 fc             	mov    edx,DWORD PTR [ebp-0x4]
+  88:	89 10                	mov    DWORD PTR [eax],edx
+}
+  8a:	c9                   	leave  
+  8b:	c3                   	ret    
+
+0000008c <__copy_from_user_overflow>:
+
+#else
+
+static inline void
+__copy_from_user_overflow(int size, unsigned long count)
+{
+  8c:	55                   	push   ebp
+  8d:	89 e5                	mov    ebp,esp
+  8f:	83 ec 0c             	sub    esp,0xc
+  92:	89 45 f8             	mov    DWORD PTR [ebp-0x8],eax
+  95:	89 55 f4             	mov    DWORD PTR [ebp-0xc],edx
+	WARN(1, "Buffer overflow detected (%d < %lu)!\n", size, count);
+  98:	c7 45 fc 01 00 00 00 	mov    DWORD PTR [ebp-0x4],0x1
+  9f:	83 7d fc 00          	cmp    DWORD PTR [ebp-0x4],0x0
+  a3:	0f 95 c0             	setne  al
+  a6:	0f b6 c0             	movzx  eax,al
+  a9:	85 c0                	test   eax,eax
+  ab:	74 1d                	je     ca <__copy_from_user_overflow+0x3e>
+  ad:	ff 75 f4             	push   DWORD PTR [ebp-0xc]
+  b0:	ff 75 f8             	push   DWORD PTR [ebp-0x8]
+  b3:	68 00 00 00 00       	push   0x0
+  b8:	68 a8 02 00 00       	push   0x2a8
+  bd:	68 28 00 00 00       	push   0x28
+  c2:	e8 fc ff ff ff       	call   c3 <__copy_from_user_overflow+0x37>
+  c7:	83 c4 14             	add    esp,0x14
+  ca:	83 7d fc 00          	cmp    DWORD PTR [ebp-0x4],0x0
+}
+  ce:	c9                   	leave  
+  cf:	c3                   	ret    
+
+000000d0 <copy_to_user>:
+	return n;
+}
+
+static inline unsigned long __must_check
+copy_to_user(void __user *to, const void *from, unsigned long n)
+{
+  d0:	55                   	push   ebp
+  d1:	89 e5                	mov    ebp,esp
+  d3:	83 ec 10             	sub    esp,0x10
+  d6:	89 45 f8             	mov    DWORD PTR [ebp-0x8],eax
+  d9:	89 55 f4             	mov    DWORD PTR [ebp-0xc],edx
+  dc:	89 4d f0             	mov    DWORD PTR [ebp-0x10],ecx
+	int sz = __compiletime_object_size(from);
+  df:	c7 45 fc ff ff ff ff 	mov    DWORD PTR [ebp-0x4],0xffffffff
+
+	might_fault();
+  e6:	e8 15 ff ff ff       	call   0 <might_fault>
+
+	/* See the comment in copy_from_user() above. */
+	if (likely(sz < 0 || sz >= n))
+  eb:	8b 45 fc             	mov    eax,DWORD PTR [ebp-0x4]
+  ee:	c1 e8 1f             	shr    eax,0x1f
+  f1:	0f b6 c0             	movzx  eax,al
+  f4:	85 c0                	test   eax,eax
+  f6:	75 10                	jne    108 <copy_to_user+0x38>
+  f8:	8b 45 fc             	mov    eax,DWORD PTR [ebp-0x4]
+  fb:	3b 45 f0             	cmp    eax,DWORD PTR [ebp-0x10]
+  fe:	0f 93 c0             	setae  al
+ 101:	0f b6 c0             	movzx  eax,al
+ 104:	85 c0                	test   eax,eax
+ 106:	74 13                	je     11b <copy_to_user+0x4b>
+		n = _copy_to_user(to, from, n);
+ 108:	8b 4d f0             	mov    ecx,DWORD PTR [ebp-0x10]
+ 10b:	8b 55 f4             	mov    edx,DWORD PTR [ebp-0xc]
+ 10e:	8b 45 f8             	mov    eax,DWORD PTR [ebp-0x8]
+ 111:	e8 fc ff ff ff       	call   112 <copy_to_user+0x42>
+ 116:	89 45 f0             	mov    DWORD PTR [ebp-0x10],eax
+ 119:	eb 0b                	jmp    126 <copy_to_user+0x56>
+	else if(__builtin_constant_p(n))
+		copy_to_user_overflow();
+	else
+		__copy_to_user_overflow(sz, n);
+ 11b:	8b 55 f0             	mov    edx,DWORD PTR [ebp-0x10]
+ 11e:	8b 45 fc             	mov    eax,DWORD PTR [ebp-0x4]
+ 121:	e8 66 ff ff ff       	call   8c <__copy_from_user_overflow>
+
+	return n;
+ 126:	8b 45 f0             	mov    eax,DWORD PTR [ebp-0x10]
+}
+ 129:	c9                   	leave  
+ 12a:	c3                   	ret    
+
+0000012b <rbtree_driver_open>:
+
+/*
+* Open rbtree driver
+*/
+int rbtree_driver_open(struct inode *inode, struct file *file)
+{
+ 12b:	55                   	push   ebp
+ 12c:	89 e5                	mov    ebp,esp
+ 12e:	83 ec 10             	sub    esp,0x10
+ 131:	89 45 f4             	mov    DWORD PTR [ebp-0xc],eax
+ 134:	89 55 f0             	mov    DWORD PTR [ebp-0x10],edx
+	struct rbtree_dev *rbtree_devp;
+
+	/* Get the per-device structure that contains this cdev */
+	rbtree_devp = container_of(inode->i_cdev, struct rbtree_dev, cdev);
+ 137:	8b 45 f4             	mov    eax,DWORD PTR [ebp-0xc]
+ 13a:	8b 80 10 01 00 00    	mov    eax,DWORD PTR [eax+0x110]
+ 140:	89 45 f8             	mov    DWORD PTR [ebp-0x8],eax
+ 143:	8b 45 f8             	mov    eax,DWORD PTR [ebp-0x8]
+ 146:	89 45 fc             	mov    DWORD PTR [ebp-0x4],eax
+
+	/* Easy access to cmos_devp from rest of the entry points */
+	file->private_data = rbtree_devp;
+ 149:	8b 45 f0             	mov    eax,DWORD PTR [ebp-0x10]
+ 14c:	8b 55 fc             	mov    edx,DWORD PTR [ebp-0x4]
+ 14f:	89 50 78             	mov    DWORD PTR [eax+0x78],edx
+	printk("\n%s is openning \n", rbtree_devp->name);
+ 152:	8b 45 fc             	mov    eax,DWORD PTR [ebp-0x4]
+ 155:	83 c0 3c             	add    eax,0x3c
+ 158:	50                   	push   eax
+ 159:	68 61 00 00 00       	push   0x61
+ 15e:	e8 fc ff ff ff       	call   15f <rbtree_driver_open+0x34>
+ 163:	83 c4 08             	add    esp,0x8
+	return 0;
+ 166:	b8 00 00 00 00       	mov    eax,0x0
+}
+ 16b:	c9                   	leave  
+ 16c:	c3                   	ret    
+
+0000016d <rbtree_driver_release>:
+
+/*
+ * Release rbtree driver
+ */
+int rbtree_driver_release(struct inode *inode, struct file *file)
+{
+ 16d:	55                   	push   ebp
+ 16e:	89 e5                	mov    ebp,esp
+ 170:	83 ec 0c             	sub    esp,0xc
+ 173:	89 45 f8             	mov    DWORD PTR [ebp-0x8],eax
+ 176:	89 55 f4             	mov    DWORD PTR [ebp-0xc],edx
+	struct rbtree_dev *rbtree_devp = file->private_data;
+ 179:	8b 45 f4             	mov    eax,DWORD PTR [ebp-0xc]
+ 17c:	8b 40 78             	mov    eax,DWORD PTR [eax+0x78]
+ 17f:	89 45 fc             	mov    DWORD PTR [ebp-0x4],eax
+	
+	printk("\n%s is closing\n", rbtree_devp->name);
+ 182:	8b 45 fc             	mov    eax,DWORD PTR [ebp-0x4]
+ 185:	83 c0 3c             	add    eax,0x3c
+ 188:	50                   	push   eax
+ 189:	68 73 00 00 00       	push   0x73
+ 18e:	e8 fc ff ff ff       	call   18f <rbtree_driver_release+0x22>
+ 193:	83 c4 08             	add    esp,0x8
+	
+	return 0;
+ 196:	b8 00 00 00 00       	mov    eax,0x0
+}
+ 19b:	c9                   	leave  
+ 19c:	c3                   	ret    
+
+0000019d <my_search>:
+
+*/
+// user just passes in struct with key and vaue
+
+struct rb_object *my_search(struct rb_root *root, int key)
+  {
+ 19d:	55                   	push   ebp
+ 19e:	89 e5                	mov    ebp,esp
+ 1a0:	83 ec 14             	sub    esp,0x14
+ 1a3:	89 45 f0             	mov    DWORD PTR [ebp-0x10],eax
+ 1a6:	89 55 ec             	mov    DWORD PTR [ebp-0x14],edx
+  	struct rb_node *node = root->rb_node;
+ 1a9:	8b 45 f0             	mov    eax,DWORD PTR [ebp-0x10]
+ 1ac:	8b 00                	mov    eax,DWORD PTR [eax]
+ 1ae:	89 45 f4             	mov    DWORD PTR [ebp-0xc],eax
+
+  	while (node) {
+ 1b1:	eb 4b                	jmp    1fe <my_search+0x61>
+  		struct rb_object *curr = container_of(node, struct rb_object, node);
+ 1b3:	8b 45 f4             	mov    eax,DWORD PTR [ebp-0xc]
+ 1b6:	89 45 f8             	mov    DWORD PTR [ebp-0x8],eax
+ 1b9:	8b 45 f8             	mov    eax,DWORD PTR [ebp-0x8]
+ 1bc:	83 e8 08             	sub    eax,0x8
+ 1bf:	89 45 fc             	mov    DWORD PTR [ebp-0x4],eax
+  		//printk("Iterating\n");
+  		//printk("Key = %d\n", curr->key);
+  		//printk("Data = %d\n", curr->data);
+
+		if(key < curr->key) {
+ 1c2:	8b 45 fc             	mov    eax,DWORD PTR [ebp-0x4]
+ 1c5:	8b 00                	mov    eax,DWORD PTR [eax]
+ 1c7:	3b 45 ec             	cmp    eax,DWORD PTR [ebp-0x14]
+ 1ca:	7e 0b                	jle    1d7 <my_search+0x3a>
+			node = node->rb_left;
+ 1cc:	8b 45 f4             	mov    eax,DWORD PTR [ebp-0xc]
+ 1cf:	8b 40 08             	mov    eax,DWORD PTR [eax+0x8]
+ 1d2:	89 45 f4             	mov    DWORD PTR [ebp-0xc],eax
+ 1d5:	eb 27                	jmp    1fe <my_search+0x61>
+		} 
+		else if(key > curr->key) {
+ 1d7:	8b 45 fc             	mov    eax,DWORD PTR [ebp-0x4]
+ 1da:	8b 00                	mov    eax,DWORD PTR [eax]
+ 1dc:	3b 45 ec             	cmp    eax,DWORD PTR [ebp-0x14]
+ 1df:	7d 0b                	jge    1ec <my_search+0x4f>
+        	node = node->rb_right;
+ 1e1:	8b 45 f4             	mov    eax,DWORD PTR [ebp-0xc]
+ 1e4:	8b 40 04             	mov    eax,DWORD PTR [eax+0x4]
+ 1e7:	89 45 f4             	mov    DWORD PTR [ebp-0xc],eax
+ 1ea:	eb 12                	jmp    1fe <my_search+0x61>
+        } 
+        else {
+        	// found node
+        	printk("Found Node to Delete\n");
+ 1ec:	68 83 00 00 00       	push   0x83
+ 1f1:	e8 fc ff ff ff       	call   1f2 <my_search+0x55>
+ 1f6:	83 c4 04             	add    esp,0x4
+            return curr;
+ 1f9:	8b 45 fc             	mov    eax,DWORD PTR [ebp-0x4]
+ 1fc:	eb 0b                	jmp    209 <my_search+0x6c>
+  	while (node) {
+ 1fe:	83 7d f4 00          	cmp    DWORD PTR [ebp-0xc],0x0
+ 202:	75 af                	jne    1b3 <my_search+0x16>
+        }
+	}
+	// node does not exist in tree
+	return NULL;
+ 204:	b8 00 00 00 00       	mov    eax,0x0
+  }
+ 209:	c9                   	leave  
+ 20a:	c3                   	ret    
+
+0000020b <my_insert>:
+
+
+
+int my_insert(struct rb_root *root, struct rb_object *nodeToInsert) {
+ 20b:	55                   	push   ebp
+ 20c:	89 e5                	mov    ebp,esp
+ 20e:	53                   	push   ebx
+ 20f:	83 ec 1c             	sub    esp,0x1c
+ 212:	89 45 e4             	mov    DWORD PTR [ebp-0x1c],eax
+ 215:	89 55 e0             	mov    DWORD PTR [ebp-0x20],edx
+
+	// if nodeToInsert->data == 0
+	//printk("Key = %d\n", nodeToInsert->key);
+	//printk("Data = %d\n", nodeToInsert->data);
+	if(nodeToInsert->data == 0) {
+ 218:	8b 45 e0             	mov    eax,DWORD PTR [ebp-0x20]
+ 21b:	8b 40 04             	mov    eax,DWORD PTR [eax+0x4]
+ 21e:	85 c0                	test   eax,eax
+ 220:	75 47                	jne    269 <my_insert+0x5e>
+		struct rb_object *nodeToDelete = my_search(root, nodeToInsert->key);
+ 222:	8b 45 e0             	mov    eax,DWORD PTR [ebp-0x20]
+ 225:	8b 10                	mov    edx,DWORD PTR [eax]
+ 227:	8b 45 e4             	mov    eax,DWORD PTR [ebp-0x1c]
+ 22a:	e8 fc ff ff ff       	call   22b <my_insert+0x20>
+ 22f:	89 45 f0             	mov    DWORD PTR [ebp-0x10],eax
+  		if (nodeToDelete != NULL) {
+ 232:	83 7d f0 00          	cmp    DWORD PTR [ebp-0x10],0x0
+ 236:	74 31                	je     269 <my_insert+0x5e>
+  			rb_erase(&(nodeToDelete->node), root);
+ 238:	8b 45 f0             	mov    eax,DWORD PTR [ebp-0x10]
+ 23b:	8d 48 08             	lea    ecx,[eax+0x8]
+ 23e:	8b 45 e4             	mov    eax,DWORD PTR [ebp-0x1c]
+ 241:	89 c2                	mov    edx,eax
+ 243:	89 c8                	mov    eax,ecx
+ 245:	e8 fc ff ff ff       	call   246 <my_insert+0x3b>
+  			kfree(nodeToDelete);
+ 24a:	8b 45 f0             	mov    eax,DWORD PTR [ebp-0x10]
+ 24d:	e8 fc ff ff ff       	call   24e <my_insert+0x43>
+  			printk("Removed Node\n");
+ 252:	68 99 00 00 00       	push   0x99
+ 257:	e8 fc ff ff ff       	call   258 <my_insert+0x4d>
+ 25c:	83 c4 04             	add    esp,0x4
+  			return 0;
+ 25f:	b8 00 00 00 00       	mov    eax,0x0
+ 264:	e9 a8 00 00 00       	jmp    311 <my_insert+0x106>
+  		}
+	}
+    
+    struct rb_node **new = &(root->rb_node), *parent = NULL;
+ 269:	8b 45 e4             	mov    eax,DWORD PTR [ebp-0x1c]
+ 26c:	89 45 e8             	mov    DWORD PTR [ebp-0x18],eax
+ 26f:	c7 45 ec 00 00 00 00 	mov    DWORD PTR [ebp-0x14],0x0
+    // Figure out where to put new node 
+    while (*new) {
+ 276:	eb 62                	jmp    2da <my_insert+0xcf>
+        struct rb_object *this = container_of(*new, struct rb_object, node);
+ 278:	8b 45 e8             	mov    eax,DWORD PTR [ebp-0x18]
+ 27b:	8b 00                	mov    eax,DWORD PTR [eax]
+ 27d:	89 45 f4             	mov    DWORD PTR [ebp-0xc],eax
+ 280:	8b 45 f4             	mov    eax,DWORD PTR [ebp-0xc]
+ 283:	83 e8 08             	sub    eax,0x8
+ 286:	89 45 f8             	mov    DWORD PTR [ebp-0x8],eax
+        //int result = strcmp(nodeToInsert->keystring, this->keystring);
+        parent = *new;
+ 289:	8b 45 e8             	mov    eax,DWORD PTR [ebp-0x18]
+ 28c:	8b 00                	mov    eax,DWORD PTR [eax]
+ 28e:	89 45 ec             	mov    DWORD PTR [ebp-0x14],eax
+        if(nodeToInsert->key < this->key) {
+ 291:	8b 45 e0             	mov    eax,DWORD PTR [ebp-0x20]
+ 294:	8b 10                	mov    edx,DWORD PTR [eax]
+ 296:	8b 45 f8             	mov    eax,DWORD PTR [ebp-0x8]
+ 299:	8b 00                	mov    eax,DWORD PTR [eax]
+ 29b:	39 c2                	cmp    edx,eax
+ 29d:	7d 0d                	jge    2ac <my_insert+0xa1>
+        	new = &((*new)->rb_left);
+ 29f:	8b 45 e8             	mov    eax,DWORD PTR [ebp-0x18]
+ 2a2:	8b 00                	mov    eax,DWORD PTR [eax]
+ 2a4:	83 c0 08             	add    eax,0x8
+ 2a7:	89 45 e8             	mov    DWORD PTR [ebp-0x18],eax
+ 2aa:	eb 2e                	jmp    2da <my_insert+0xcf>
+        } else if(nodeToInsert->key > this->key) {
+ 2ac:	8b 45 e0             	mov    eax,DWORD PTR [ebp-0x20]
+ 2af:	8b 10                	mov    edx,DWORD PTR [eax]
+ 2b1:	8b 45 f8             	mov    eax,DWORD PTR [ebp-0x8]
+ 2b4:	8b 00                	mov    eax,DWORD PTR [eax]
+ 2b6:	39 c2                	cmp    edx,eax
+ 2b8:	7e 0d                	jle    2c7 <my_insert+0xbc>
+        	new = &((*new)->rb_right);
+ 2ba:	8b 45 e8             	mov    eax,DWORD PTR [ebp-0x18]
+ 2bd:	8b 00                	mov    eax,DWORD PTR [eax]
+ 2bf:	83 c0 04             	add    eax,0x4
+ 2c2:	89 45 e8             	mov    DWORD PTR [ebp-0x18],eax
+ 2c5:	eb 13                	jmp    2da <my_insert+0xcf>
+        } else {
+        	// node already exists in tree
+        	// replace data
+        	this->data = nodeToInsert->data;
+ 2c7:	8b 45 e0             	mov    eax,DWORD PTR [ebp-0x20]
+ 2ca:	8b 50 04             	mov    edx,DWORD PTR [eax+0x4]
+ 2cd:	8b 45 f8             	mov    eax,DWORD PTR [ebp-0x8]
+ 2d0:	89 50 04             	mov    DWORD PTR [eax+0x4],edx
+            return 1;
+ 2d3:	b8 01 00 00 00       	mov    eax,0x1
+ 2d8:	eb 37                	jmp    311 <my_insert+0x106>
+    while (*new) {
+ 2da:	8b 45 e8             	mov    eax,DWORD PTR [ebp-0x18]
+ 2dd:	8b 00                	mov    eax,DWORD PTR [eax]
+ 2df:	85 c0                	test   eax,eax
+ 2e1:	75 95                	jne    278 <my_insert+0x6d>
+        }
+            
+    }
+
+      // Add new node and rebalance tree. 
+      rb_link_node(&nodeToInsert->node, parent, new);
+ 2e3:	8b 45 e0             	mov    eax,DWORD PTR [ebp-0x20]
+ 2e6:	8d 58 08             	lea    ebx,[eax+0x8]
+ 2e9:	8b 55 e8             	mov    edx,DWORD PTR [ebp-0x18]
+ 2ec:	8b 45 ec             	mov    eax,DWORD PTR [ebp-0x14]
+ 2ef:	89 d1                	mov    ecx,edx
+ 2f1:	89 c2                	mov    edx,eax
+ 2f3:	89 d8                	mov    eax,ebx
+ 2f5:	e8 5b fd ff ff       	call   55 <rb_link_node>
+      rb_insert_color(&nodeToInsert->node, root);
+ 2fa:	8b 45 e0             	mov    eax,DWORD PTR [ebp-0x20]
+ 2fd:	8d 48 08             	lea    ecx,[eax+0x8]
+ 300:	8b 45 e4             	mov    eax,DWORD PTR [ebp-0x1c]
+ 303:	89 c2                	mov    edx,eax
+ 305:	89 c8                	mov    eax,ecx
+ 307:	e8 fc ff ff ff       	call   308 <my_insert+0xfd>
+
+      return 0;
+ 30c:	b8 00 00 00 00       	mov    eax,0x0
+}
+ 311:	8b 5d fc             	mov    ebx,DWORD PTR [ebp-0x4]
+ 314:	c9                   	leave  
+ 315:	c3                   	ret    
+
+00000316 <rbtree_driver_write>:
+// user just passes in struct with key and vaue
+// sudo cat /proc/kallsyms | grep rbtree_driver_write
+
+ssize_t rbtree_driver_write(struct file *file, const char *buf,
+           size_t count, loff_t *ppos)
+{
+ 316:	55                   	push   ebp
+ 317:	89 e5                	mov    ebp,esp
+ 319:	83 ec 44             	sub    esp,0x44
+ 31c:	89 45 c4             	mov    DWORD PTR [ebp-0x3c],eax
+ 31f:	89 55 c0             	mov    DWORD PTR [ebp-0x40],edx
+ 322:	89 4d bc             	mov    DWORD PTR [ebp-0x44],ecx
+	// User should provide rb_object
+	//printk("DRDRIVER WRITE AROUND = %p\n", (void*) rbtree_driver_write);
+	//printk("Write pid = %d\n", current->pid);
+
+	// Declaring this file pointer is for locating the file pointer in the x86 code
+	volatile struct file* f = file;
+ 325:	8b 45 c4             	mov    eax,DWORD PTR [ebp-0x3c]
+ 328:	89 45 cc             	mov    DWORD PTR [ebp-0x34],eax
+
+
+	
+	struct rbtree_dev *rbtree_devp = file->private_data;
+ 32b:	8b 45 c4             	mov    eax,DWORD PTR [ebp-0x3c]
+ 32e:	8b 40 78             	mov    eax,DWORD PTR [eax+0x78]
+ 331:	89 45 d0             	mov    DWORD PTR [ebp-0x30],eax
+
+	// LOCK
+	spin_lock(&(rbtree_devp->spinlockDevice));
+ 334:	8b 45 d0             	mov    eax,DWORD PTR [ebp-0x30]
+ 337:	05 58 01 00 00       	add    eax,0x158
+ 33c:	e8 fe fc ff ff       	call   3f <spin_lock>
+
+	
+	// TODO: Test count
+	printk("Original Count = %zu\n", count);
+ 341:	ff 75 bc             	push   DWORD PTR [ebp-0x44]
+ 344:	68 a7 00 00 00       	push   0xa7
+ 349:	e8 fc ff ff ff       	call   34a <rbtree_driver_write+0x34>
+ 34e:	83 c4 08             	add    esp,0x8
+
+	struct rb_keydata intermediate;
+
+	int errChkKey = get_user(intermediate.key, (buf));
+ 351:	e8 aa fc ff ff       	call   0 <might_fault>
+ 356:	8b 45 c0             	mov    eax,DWORD PTR [ebp-0x40]
+ 359:	e8 fc ff ff ff       	call   35a <rbtree_driver_write+0x44>
+ 35e:	89 45 d4             	mov    DWORD PTR [ebp-0x2c],eax
+ 361:	89 d0                	mov    eax,edx
+ 363:	88 45 ca             	mov    BYTE PTR [ebp-0x36],al
+ 366:	8b 45 d4             	mov    eax,DWORD PTR [ebp-0x2c]
+ 369:	89 45 d8             	mov    DWORD PTR [ebp-0x28],eax
+		if(errChkKey == -EFAULT) {
+ 36c:	83 7d d8 f2          	cmp    DWORD PTR [ebp-0x28],0xfffffff2
+ 370:	75 27                	jne    399 <rbtree_driver_write+0x83>
+			printk("Unknown KEY  From Buffer Detected\n");
+ 372:	68 c0 00 00 00       	push   0xc0
+ 377:	e8 fc ff ff ff       	call   378 <rbtree_driver_write+0x62>
+ 37c:	83 c4 04             	add    esp,0x4
+			spin_unlock(&(rbtree_devp->spinlockDevice));
+ 37f:	8b 45 d0             	mov    eax,DWORD PTR [ebp-0x30]
+ 382:	05 58 01 00 00       	add    eax,0x158
+ 387:	e8 be fc ff ff       	call   4a <spin_unlock>
+			return PTR_ERR(buf);
+ 38c:	8b 45 c0             	mov    eax,DWORD PTR [ebp-0x40]
+ 38f:	e8 71 fc ff ff       	call   5 <PTR_ERR>
+ 394:	e9 84 01 00 00       	jmp    51d <rbtree_driver_write+0x207>
+		}
+		// add 4 because we want the next int and int has size 4. Adding one is only for chars
+		buf = buf + 4;
+ 399:	83 45 c0 04          	add    DWORD PTR [ebp-0x40],0x4
+		int errChkData = get_user(intermediate.data, (buf));
+ 39d:	e8 5e fc ff ff       	call   0 <might_fault>
+ 3a2:	8b 45 c0             	mov    eax,DWORD PTR [ebp-0x40]
+ 3a5:	e8 fc ff ff ff       	call   3a6 <rbtree_driver_write+0x90>
+ 3aa:	89 45 dc             	mov    DWORD PTR [ebp-0x24],eax
+ 3ad:	89 d0                	mov    eax,edx
+ 3af:	88 45 cb             	mov    BYTE PTR [ebp-0x35],al
+ 3b2:	8b 45 dc             	mov    eax,DWORD PTR [ebp-0x24]
+ 3b5:	89 45 e0             	mov    DWORD PTR [ebp-0x20],eax
+		if(errChkData == -EFAULT) {
+ 3b8:	83 7d e0 f2          	cmp    DWORD PTR [ebp-0x20],0xfffffff2
+ 3bc:	75 27                	jne    3e5 <rbtree_driver_write+0xcf>
+			printk("Unknown KEY  From Buffer Detected\n");
+ 3be:	68 c0 00 00 00       	push   0xc0
+ 3c3:	e8 fc ff ff ff       	call   3c4 <rbtree_driver_write+0xae>
+ 3c8:	83 c4 04             	add    esp,0x4
+			spin_unlock(&(rbtree_devp->spinlockDevice));
+ 3cb:	8b 45 d0             	mov    eax,DWORD PTR [ebp-0x30]
+ 3ce:	05 58 01 00 00       	add    eax,0x158
+ 3d3:	e8 72 fc ff ff       	call   4a <spin_unlock>
+			return PTR_ERR(buf);
+ 3d8:	8b 45 c0             	mov    eax,DWORD PTR [ebp-0x40]
+ 3db:	e8 25 fc ff ff       	call   5 <PTR_ERR>
+ 3e0:	e9 38 01 00 00       	jmp    51d <rbtree_driver_write+0x207>
+		}
+	printk("KEY = %d\n", intermediate.key);
+ 3e5:	0f b6 45 ca          	movzx  eax,BYTE PTR [ebp-0x36]
+ 3e9:	0f be c0             	movsx  eax,al
+ 3ec:	50                   	push   eax
+ 3ed:	68 e3 00 00 00       	push   0xe3
+ 3f2:	e8 fc ff ff ff       	call   3f3 <rbtree_driver_write+0xdd>
+ 3f7:	83 c4 08             	add    esp,0x8
+	printk("DATA = %d\n", intermediate.data);
+ 3fa:	0f b6 45 cb          	movzx  eax,BYTE PTR [ebp-0x35]
+ 3fe:	0f be c0             	movsx  eax,al
+ 401:	50                   	push   eax
+ 402:	68 ed 00 00 00       	push   0xed
+ 407:	e8 fc ff ff ff       	call   408 <rbtree_driver_write+0xf2>
+ 40c:	83 c4 08             	add    esp,0x8
+
+	int keyToInsert = (int) intermediate.key;
+ 40f:	0f b6 45 ca          	movzx  eax,BYTE PTR [ebp-0x36]
+ 413:	0f be c0             	movsx  eax,al
+ 416:	89 45 e4             	mov    DWORD PTR [ebp-0x1c],eax
+	int dataToInsert = (int) intermediate.data;
+ 419:	0f b6 45 cb          	movzx  eax,BYTE PTR [ebp-0x35]
+ 41d:	0f be c0             	movsx  eax,al
+ 420:	89 45 e8             	mov    DWORD PTR [ebp-0x18],eax
+
+	if(dataToInsert == 0) {
+ 423:	83 7d e8 00          	cmp    DWORD PTR [ebp-0x18],0x0
+ 427:	75 4c                	jne    475 <rbtree_driver_write+0x15f>
+		// If (data==0) remove corresponding node
+		struct rb_object* nodeToDelete = my_search(&(rbtree_devp->mytree), keyToInsert);
+ 429:	8b 45 d0             	mov    eax,DWORD PTR [ebp-0x30]
+ 42c:	8d 88 54 01 00 00    	lea    ecx,[eax+0x154]
+ 432:	8b 45 e4             	mov    eax,DWORD PTR [ebp-0x1c]
+ 435:	89 c2                	mov    edx,eax
+ 437:	89 c8                	mov    eax,ecx
+ 439:	e8 fc ff ff ff       	call   43a <rbtree_driver_write+0x124>
+ 43e:	89 45 f4             	mov    DWORD PTR [ebp-0xc],eax
+		if (nodeToDelete) {
+ 441:	83 7d f4 00          	cmp    DWORD PTR [ebp-0xc],0x0
+ 445:	74 29                	je     470 <rbtree_driver_write+0x15a>
+			// the node exists in the tree and now should be deleted
+      		rb_erase(&nodeToDelete->node, &(rbtree_devp->mytree));
+ 447:	8b 45 d0             	mov    eax,DWORD PTR [ebp-0x30]
+ 44a:	8d 90 54 01 00 00    	lea    edx,[eax+0x154]
+ 450:	8b 45 f4             	mov    eax,DWORD PTR [ebp-0xc]
+ 453:	83 c0 08             	add    eax,0x8
+ 456:	e8 fc ff ff ff       	call   457 <rbtree_driver_write+0x141>
+      		kfree(nodeToDelete);
+ 45b:	8b 45 f4             	mov    eax,DWORD PTR [ebp-0xc]
+ 45e:	e8 fc ff ff ff       	call   45f <rbtree_driver_write+0x149>
+      		printk("Node Deleted\n");
+ 463:	68 f8 00 00 00       	push   0xf8
+ 468:	e8 fc ff ff ff       	call   469 <rbtree_driver_write+0x153>
+ 46d:	83 c4 04             	add    esp,0x4
+ 470:	e9 96 00 00 00       	jmp    50b <rbtree_driver_write+0x1f5>
+ 475:	c7 45 f8 14 00 00 00 	mov    DWORD PTR [ebp-0x8],0x14
+ 47c:	c7 45 fc d0 00 00 00 	mov    DWORD PTR [ebp-0x4],0xd0
+			return kmem_cache_alloc_trace(kmalloc_caches[index],
+					flags, size);
+		}
+#endif
+	}
+	return __kmalloc(size, flags);
+ 483:	8b 55 fc             	mov    edx,DWORD PTR [ebp-0x4]
+ 486:	8b 45 f8             	mov    eax,DWORD PTR [ebp-0x8]
+ 489:	e8 fc ff ff ff       	call   48a <rbtree_driver_write+0x174>
+		} else {
+			// Node does not exist in tree and no action should be taken in this while loop iteration
+		}
+	} else {
+		// Insert new node or replace data field of existing node in tree
+		struct rb_object* nodeToInsert = kmalloc(sizeof(struct rb_object), GFP_KERNEL);
+ 48e:	89 45 ec             	mov    DWORD PTR [ebp-0x14],eax
+		if (!nodeToInsert) {
+ 491:	83 7d ec 00          	cmp    DWORD PTR [ebp-0x14],0x0
+ 495:	75 21                	jne    4b8 <rbtree_driver_write+0x1a2>
+			printk("Bad Kmalloc\n");
+ 497:	68 06 01 00 00       	push   0x106
+ 49c:	e8 fc ff ff ff       	call   49d <rbtree_driver_write+0x187>
+ 4a1:	83 c4 04             	add    esp,0x4
+
+			// UNLOCK 
+			spin_unlock(&(rbtree_devp->spinlockDevice));
+ 4a4:	8b 45 d0             	mov    eax,DWORD PTR [ebp-0x30]
+ 4a7:	05 58 01 00 00       	add    eax,0x158
+ 4ac:	e8 99 fb ff ff       	call   4a <spin_unlock>
+			return -ENOMEM;
+ 4b1:	b8 f4 ff ff ff       	mov    eax,0xfffffff4
+ 4b6:	eb 65                	jmp    51d <rbtree_driver_write+0x207>
+		}
+		// fill in node 
+		nodeToInsert->key = keyToInsert;
+ 4b8:	8b 45 ec             	mov    eax,DWORD PTR [ebp-0x14]
+ 4bb:	8b 55 e4             	mov    edx,DWORD PTR [ebp-0x1c]
+ 4be:	89 10                	mov    DWORD PTR [eax],edx
+		nodeToInsert->data = dataToInsert;
+ 4c0:	8b 45 ec             	mov    eax,DWORD PTR [ebp-0x14]
+ 4c3:	8b 55 e8             	mov    edx,DWORD PTR [ebp-0x18]
+ 4c6:	89 50 04             	mov    DWORD PTR [eax+0x4],edx
+		int result = my_insert(&(rbtree_devp->mytree), nodeToInsert);
+ 4c9:	8b 45 d0             	mov    eax,DWORD PTR [ebp-0x30]
+ 4cc:	8d 88 54 01 00 00    	lea    ecx,[eax+0x154]
+ 4d2:	8b 45 ec             	mov    eax,DWORD PTR [ebp-0x14]
+ 4d5:	89 c2                	mov    edx,eax
+ 4d7:	89 c8                	mov    eax,ecx
+ 4d9:	e8 fc ff ff ff       	call   4da <rbtree_driver_write+0x1c4>
+ 4de:	89 45 f0             	mov    DWORD PTR [ebp-0x10],eax
+		if(result == 0) {
+ 4e1:	83 7d f0 00          	cmp    DWORD PTR [ebp-0x10],0x0
+ 4e5:	75 0f                	jne    4f6 <rbtree_driver_write+0x1e0>
+			printk("Node Inserted\n");
+ 4e7:	68 13 01 00 00       	push   0x113
+ 4ec:	e8 fc ff ff ff       	call   4ed <rbtree_driver_write+0x1d7>
+ 4f1:	83 c4 04             	add    esp,0x4
+ 4f4:	eb 15                	jmp    50b <rbtree_driver_write+0x1f5>
+		} else {
+			printk("Node Exists in Tree\n");
+ 4f6:	68 22 01 00 00       	push   0x122
+ 4fb:	e8 fc ff ff ff       	call   4fc <rbtree_driver_write+0x1e6>
+ 500:	83 c4 04             	add    esp,0x4
+			kfree(nodeToInsert);
+ 503:	8b 45 ec             	mov    eax,DWORD PTR [ebp-0x14]
+ 506:	e8 fc ff ff ff       	call   507 <rbtree_driver_write+0x1f1>
+
+    }
+    */
+	
+	// UNLOCK
+	spin_unlock(&(rbtree_devp->spinlockDevice));
+ 50b:	8b 45 d0             	mov    eax,DWORD PTR [ebp-0x30]
+ 50e:	05 58 01 00 00       	add    eax,0x158
+ 513:	e8 32 fb ff ff       	call   4a <spin_unlock>
+	return 0;
+ 518:	b8 00 00 00 00       	mov    eax,0x0
+}
+ 51d:	c9                   	leave  
+ 51e:	c3                   	ret    
+
+0000051f <rbtree_driver_unlocked_ioctl>:
+
+Otherwise, -1 is returned and errno is set to EINVAL.
+
+*/
+// TODO: Use unlocked ioctl
+long rbtree_driver_unlocked_ioctl(struct file *file, unsigned int ioctl_num, unsigned long ioctl_param) {
+ 51f:	55                   	push   ebp
+ 520:	89 e5                	mov    ebp,esp
+ 522:	83 ec 10             	sub    esp,0x10
+ 525:	89 45 f8             	mov    DWORD PTR [ebp-0x8],eax
+ 528:	89 55 f4             	mov    DWORD PTR [ebp-0xc],edx
+ 52b:	89 4d f0             	mov    DWORD PTR [ebp-0x10],ecx
+	// TODO: local read order
+
+	
+
+	struct rbtree_dev *rbtree_devp = file->private_data;
+ 52e:	8b 45 f8             	mov    eax,DWORD PTR [ebp-0x8]
+ 531:	8b 40 78             	mov    eax,DWORD PTR [eax+0x78]
+ 534:	89 45 fc             	mov    DWORD PTR [ebp-0x4],eax
+
+	// LOCK
+	spin_lock(&(rbtree_devp->spinlockDevice));
+ 537:	8b 45 fc             	mov    eax,DWORD PTR [ebp-0x4]
+ 53a:	05 58 01 00 00       	add    eax,0x158
+ 53f:	e8 fb fa ff ff       	call   3f <spin_lock>
+
+
+	printk("IN Unlocked_IOTCL\n");
+ 544:	68 37 01 00 00       	push   0x137
+ 549:	e8 fc ff ff ff       	call   54a <rbtree_driver_unlocked_ioctl+0x2b>
+ 54e:	83 c4 04             	add    esp,0x4
+	printk("ioctl number = %d\n", ioctl_num);
+ 551:	ff 75 f4             	push   DWORD PTR [ebp-0xc]
+ 554:	68 4a 01 00 00       	push   0x14a
+ 559:	e8 fc ff ff ff       	call   55a <rbtree_driver_unlocked_ioctl+0x3b>
+ 55e:	83 c4 08             	add    esp,0x8
+
+
+	if(ioctl_num == 0) {
+ 561:	83 7d f4 00          	cmp    DWORD PTR [ebp-0xc],0x0
+ 565:	75 0f                	jne    576 <rbtree_driver_unlocked_ioctl+0x57>
+		rbtree_devp->readOrderDevice = 0;
+ 567:	8b 45 fc             	mov    eax,DWORD PTR [ebp-0x4]
+ 56a:	c7 80 58 01 00 00 00 	mov    DWORD PTR [eax+0x158],0x0
+ 571:	00 00 00 
+ 574:	eb 36                	jmp    5ac <rbtree_driver_unlocked_ioctl+0x8d>
+	} else if(ioctl_num == 1) {
+ 576:	83 7d f4 01          	cmp    DWORD PTR [ebp-0xc],0x1
+ 57a:	75 0f                	jne    58b <rbtree_driver_unlocked_ioctl+0x6c>
+		rbtree_devp->readOrderDevice = 1;
+ 57c:	8b 45 fc             	mov    eax,DWORD PTR [ebp-0x4]
+ 57f:	c7 80 58 01 00 00 01 	mov    DWORD PTR [eax+0x158],0x1
+ 586:	00 00 00 
+ 589:	eb 21                	jmp    5ac <rbtree_driver_unlocked_ioctl+0x8d>
+    		}
+		}	
+	}
+	*/
+	else {
+		printk("ioctl must have 0 or 1 as a parameter to set read order or 2 to displaying all contents\n");
+ 58b:	68 60 01 00 00       	push   0x160
+ 590:	e8 fc ff ff ff       	call   591 <rbtree_driver_unlocked_ioctl+0x72>
+ 595:	83 c4 04             	add    esp,0x4
+		// TODO: search how to set up error call ioctl
+		// UNLOCK
+		spin_unlock(&(rbtree_devp->spinlockDevice));
+ 598:	8b 45 fc             	mov    eax,DWORD PTR [ebp-0x4]
+ 59b:	05 58 01 00 00       	add    eax,0x158
+ 5a0:	e8 a5 fa ff ff       	call   4a <spin_unlock>
+		return -EINVAL;
+ 5a5:	b8 ea ff ff ff       	mov    eax,0xffffffea
+ 5aa:	eb 12                	jmp    5be <rbtree_driver_unlocked_ioctl+0x9f>
+	}
+
+	// UNLOCK
+	spin_unlock(&(rbtree_devp->spinlockDevice));
+ 5ac:	8b 45 fc             	mov    eax,DWORD PTR [ebp-0x4]
+ 5af:	05 58 01 00 00       	add    eax,0x158
+ 5b4:	e8 91 fa ff ff       	call   4a <spin_unlock>
+	return 0;
+ 5b9:	b8 00 00 00 00       	mov    eax,0x0
+
+}
+ 5be:	c9                   	leave  
+ 5bf:	c3                   	ret    
+
+000005c0 <rbtree_driver_read>:
+} rb_keydata_t;
+
+*/
+ssize_t rbtree_driver_read(struct file *file, char *buf,
+           size_t count, loff_t *ppos)
+{
+ 5c0:	55                   	push   ebp
+ 5c1:	89 e5                	mov    ebp,esp
+ 5c3:	83 ec 50             	sub    esp,0x50
+ 5c6:	89 45 b8             	mov    DWORD PTR [ebp-0x48],eax
+ 5c9:	89 55 b4             	mov    DWORD PTR [ebp-0x4c],edx
+ 5cc:	89 4d b0             	mov    DWORD PTR [ebp-0x50],ecx
+	// TODO: Write object back to user
+	// TODO: add cursor to where you are in the tree
+
+	// This file pointer is for referencing the x86 code for the kprobe pre-handler
+	volatile struct file* f = file;
+ 5cf:	8b 45 b8             	mov    eax,DWORD PTR [ebp-0x48]
+ 5d2:	89 45 c4             	mov    DWORD PTR [ebp-0x3c],eax
+
+	
+
+	
+	struct rbtree_dev *rbtree_devp = file->private_data;
+ 5d5:	8b 45 b8             	mov    eax,DWORD PTR [ebp-0x48]
+ 5d8:	8b 40 78             	mov    eax,DWORD PTR [eax+0x78]
+ 5db:	89 45 c8             	mov    DWORD PTR [ebp-0x38],eax
+
+	// LOCK
+	spin_lock(&(rbtree_devp->spinlockDevice));
+ 5de:	8b 45 c8             	mov    eax,DWORD PTR [ebp-0x38]
+ 5e1:	05 58 01 00 00       	add    eax,0x158
+ 5e6:	e8 54 fa ff ff       	call   3f <spin_lock>
+
+
+	// for debugging x86
+	volatile int i = 0;
+ 5eb:	c7 45 c0 00 00 00 00 	mov    DWORD PTR [ebp-0x40],0x0
+	i = i + 1;
+ 5f2:	8b 45 c0             	mov    eax,DWORD PTR [ebp-0x40]
+ 5f5:	83 c0 01             	add    eax,0x1
+ 5f8:	89 45 c0             	mov    DWORD PTR [ebp-0x40],eax
+
+	// bytes read back to user
+	int bytes_read = 0;
+ 5fb:	c7 45 cc 00 00 00 00 	mov    DWORD PTR [ebp-0x34],0x0
+	
+	
+
+	if(count != 8) {
+ 602:	83 7d b0 08          	cmp    DWORD PTR [ebp-0x50],0x8
+ 606:	74 17                	je     61f <rbtree_driver_read+0x5f>
+		// copies data to user in 8 byte increments
+
+		// UNLOCK
+		spin_unlock(&(rbtree_devp->spinlockDevice));
+ 608:	8b 45 c8             	mov    eax,DWORD PTR [ebp-0x38]
+ 60b:	05 58 01 00 00       	add    eax,0x158
+ 610:	e8 35 fa ff ff       	call   4a <spin_unlock>
+		return -1;
+ 615:	b8 ff ff ff ff       	mov    eax,0xffffffff
+ 61a:	e9 9e 03 00 00       	jmp    9bd <rbtree_driver_read+0x3fd>
+	}
+
+	struct keydata_to_read sendToUser;
+	bool cursorHasBeenUsed = true;
+ 61f:	c6 45 bf 01          	mov    BYTE PTR [ebp-0x41],0x1
+	//struct rb_node *node;
+
+	//rbtree_devp->readOrderDevice = 1;
+	printk("READ NODES IN TREE KERNELSPACE \n");
+ 623:	68 bc 01 00 00       	push   0x1bc
+ 628:	e8 fc ff ff ff       	call   629 <rbtree_driver_read+0x69>
+ 62d:	83 c4 04             	add    esp,0x4
+	if(rbtree_devp->readOrderDevice == 0) {
+ 630:	8b 45 c8             	mov    eax,DWORD PTR [ebp-0x38]
+ 633:	8b 80 58 01 00 00    	mov    eax,DWORD PTR [eax+0x158]
+ 639:	85 c0                	test   eax,eax
+ 63b:	0f 85 c1 01 00 00    	jne    802 <rbtree_driver_read+0x242>
+		// read in ascending order
+		printk("Ascending Order\n");
+ 641:	68 dd 01 00 00       	push   0x1dd
+ 646:	e8 fc ff ff ff       	call   647 <rbtree_driver_read+0x87>
+ 64b:	83 c4 04             	add    esp,0x4
+
+		if(rbtree_devp->treeCursor == NULL) {
+ 64e:	8b 45 c8             	mov    eax,DWORD PTR [ebp-0x38]
+ 651:	8b 80 50 01 00 00    	mov    eax,DWORD PTR [eax+0x150]
+ 657:	85 c0                	test   eax,eax
+ 659:	75 29                	jne    684 <rbtree_driver_read+0xc4>
+			// treeCursor has not been used yet
+			printk("Empty Tree\n");
+ 65b:	68 ee 01 00 00       	push   0x1ee
+ 660:	e8 fc ff ff ff       	call   661 <rbtree_driver_read+0xa1>
+ 665:	83 c4 04             	add    esp,0x4
+			rbtree_devp->treeCursor = rb_first(&(rbtree_devp->mytree));
+ 668:	8b 45 c8             	mov    eax,DWORD PTR [ebp-0x38]
+ 66b:	05 54 01 00 00       	add    eax,0x154
+ 670:	e8 fc ff ff ff       	call   671 <rbtree_driver_read+0xb1>
+ 675:	89 c2                	mov    edx,eax
+ 677:	8b 45 c8             	mov    eax,DWORD PTR [ebp-0x38]
+ 67a:	89 90 50 01 00 00    	mov    DWORD PTR [eax+0x150],edx
+			cursorHasBeenUsed = false;
+ 680:	c6 45 bf 00          	mov    BYTE PTR [ebp-0x41],0x0
+		}
+		
+		if(rb_first(&(rbtree_devp->mytree)) == NULL) {
+ 684:	8b 45 c8             	mov    eax,DWORD PTR [ebp-0x38]
+ 687:	05 54 01 00 00       	add    eax,0x154
+ 68c:	e8 fc ff ff ff       	call   68d <rbtree_driver_read+0xcd>
+ 691:	85 c0                	test   eax,eax
+ 693:	75 17                	jne    6ac <rbtree_driver_read+0xec>
+			// tree is empty
+
+			// UNLOCK
+			spin_unlock(&(rbtree_devp->spinlockDevice));
+ 695:	8b 45 c8             	mov    eax,DWORD PTR [ebp-0x38]
+ 698:	05 58 01 00 00       	add    eax,0x158
+ 69d:	e8 a8 f9 ff ff       	call   4a <spin_unlock>
+			return -EINVAL;
+ 6a2:	b8 ea ff ff ff       	mov    eax,0xffffffea
+ 6a7:	e9 11 03 00 00       	jmp    9bd <rbtree_driver_read+0x3fd>
+		}
+
+		// update cursor 
+		// test the node to read (the one after the current node we are on) to see if it is null
+		struct rb_node *testNext = rb_next(rbtree_devp->treeCursor);
+ 6ac:	8b 45 c8             	mov    eax,DWORD PTR [ebp-0x38]
+ 6af:	8b 80 50 01 00 00    	mov    eax,DWORD PTR [eax+0x150]
+ 6b5:	e8 fc ff ff ff       	call   6b6 <rbtree_driver_read+0xf6>
+ 6ba:	89 45 d0             	mov    DWORD PTR [ebp-0x30],eax
+		if(testNext == NULL && cursorHasBeenUsed == true) {
+ 6bd:	83 7d d0 00          	cmp    DWORD PTR [ebp-0x30],0x0
+ 6c1:	75 2a                	jne    6ed <rbtree_driver_read+0x12d>
+ 6c3:	80 7d bf 00          	cmp    BYTE PTR [ebp-0x41],0x0
+ 6c7:	74 24                	je     6ed <rbtree_driver_read+0x12d>
+			printk("The next node is empty.\n");
+ 6c9:	68 fa 01 00 00       	push   0x1fa
+ 6ce:	e8 fc ff ff ff       	call   6cf <rbtree_driver_read+0x10f>
+ 6d3:	83 c4 04             	add    esp,0x4
+
+			// UNLOCK
+			spin_unlock(&(rbtree_devp->spinlockDevice));
+ 6d6:	8b 45 c8             	mov    eax,DWORD PTR [ebp-0x38]
+ 6d9:	05 58 01 00 00       	add    eax,0x158
+ 6de:	e8 67 f9 ff ff       	call   4a <spin_unlock>
+			return -1;
+ 6e3:	b8 ff ff ff ff       	mov    eax,0xffffffff
+ 6e8:	e9 d0 02 00 00       	jmp    9bd <rbtree_driver_read+0x3fd>
+		} else {
+			// update cursor
+			if(cursorHasBeenUsed == true) {
+ 6ed:	80 7d bf 00          	cmp    BYTE PTR [ebp-0x41],0x0
+ 6f1:	74 1b                	je     70e <rbtree_driver_read+0x14e>
+				rbtree_devp->treeCursor = rb_next(rbtree_devp->treeCursor);
+ 6f3:	8b 45 c8             	mov    eax,DWORD PTR [ebp-0x38]
+ 6f6:	8b 80 50 01 00 00    	mov    eax,DWORD PTR [eax+0x150]
+ 6fc:	e8 fc ff ff ff       	call   6fd <rbtree_driver_read+0x13d>
+ 701:	89 c2                	mov    edx,eax
+ 703:	8b 45 c8             	mov    eax,DWORD PTR [ebp-0x38]
+ 706:	89 90 50 01 00 00    	mov    DWORD PTR [eax+0x150],edx
+ 70c:	eb 04                	jmp    712 <rbtree_driver_read+0x152>
+			} else {
+				// cursor has now been ininitialized
+				cursorHasBeenUsed = true;
+ 70e:	c6 45 bf 01          	mov    BYTE PTR [ebp-0x41],0x1
+			}
+			// send data to user
+			struct rb_node *node = rbtree_devp->treeCursor;
+ 712:	8b 45 c8             	mov    eax,DWORD PTR [ebp-0x38]
+ 715:	8b 80 50 01 00 00    	mov    eax,DWORD PTR [eax+0x150]
+ 71b:	89 45 d4             	mov    DWORD PTR [ebp-0x2c],eax
+			if(rbtree_devp->treeCursor == NULL) {
+ 71e:	8b 45 c8             	mov    eax,DWORD PTR [ebp-0x38]
+ 721:	8b 80 50 01 00 00    	mov    eax,DWORD PTR [eax+0x150]
+ 727:	85 c0                	test   eax,eax
+ 729:	75 24                	jne    74f <rbtree_driver_read+0x18f>
+				printk("Cursur Is NULL\n");
+ 72b:	68 13 02 00 00       	push   0x213
+ 730:	e8 fc ff ff ff       	call   731 <rbtree_driver_read+0x171>
+ 735:	83 c4 04             	add    esp,0x4
+
+				// UNLOCK
+				spin_unlock(&(rbtree_devp->spinlockDevice));
+ 738:	8b 45 c8             	mov    eax,DWORD PTR [ebp-0x38]
+ 73b:	05 58 01 00 00       	add    eax,0x158
+ 740:	e8 05 f9 ff ff       	call   4a <spin_unlock>
+				return -1;
+ 745:	b8 ff ff ff ff       	mov    eax,0xffffffff
+ 74a:	e9 6e 02 00 00       	jmp    9bd <rbtree_driver_read+0x3fd>
+			}
+
+			sendToUser.key = rb_entry(node, struct rb_object, node)->key;
+ 74f:	8b 45 d4             	mov    eax,DWORD PTR [ebp-0x2c]
+ 752:	89 45 d8             	mov    DWORD PTR [ebp-0x28],eax
+ 755:	8b 45 d8             	mov    eax,DWORD PTR [ebp-0x28]
+ 758:	83 e8 08             	sub    eax,0x8
+ 75b:	8b 00                	mov    eax,DWORD PTR [eax]
+ 75d:	89 45 f8             	mov    DWORD PTR [ebp-0x8],eax
+    		sendToUser.data = rb_entry(node, struct rb_object, node)->data;
+ 760:	8b 45 d4             	mov    eax,DWORD PTR [ebp-0x2c]
+ 763:	89 45 dc             	mov    DWORD PTR [ebp-0x24],eax
+ 766:	8b 45 dc             	mov    eax,DWORD PTR [ebp-0x24]
+ 769:	83 e8 08             	sub    eax,0x8
+ 76c:	8b 40 04             	mov    eax,DWORD PTR [eax+0x4]
+ 76f:	89 45 fc             	mov    DWORD PTR [ebp-0x4],eax
+    		printk("KEY To send to user = %d\n", sendToUser.key);
+ 772:	8b 45 f8             	mov    eax,DWORD PTR [ebp-0x8]
+ 775:	50                   	push   eax
+ 776:	68 23 02 00 00       	push   0x223
+ 77b:	e8 fc ff ff ff       	call   77c <rbtree_driver_read+0x1bc>
+ 780:	83 c4 08             	add    esp,0x8
+    		printk("DATA To send to user = %d\n", sendToUser.data);
+ 783:	8b 45 fc             	mov    eax,DWORD PTR [ebp-0x4]
+ 786:	50                   	push   eax
+ 787:	68 3d 02 00 00       	push   0x23d
+ 78c:	e8 fc ff ff ff       	call   78d <rbtree_driver_read+0x1cd>
+ 791:	83 c4 08             	add    esp,0x8
+    		printk("COUNT READ = %zu", count);
+ 794:	ff 75 b0             	push   DWORD PTR [ebp-0x50]
+ 797:	68 58 02 00 00       	push   0x258
+ 79c:	e8 fc ff ff ff       	call   79d <rbtree_driver_read+0x1dd>
+ 7a1:	83 c4 08             	add    esp,0x8
+
+    		int errChkKeyData = copy_to_user(buf, &sendToUser, sizeof(struct keydata_to_read));
+ 7a4:	8d 55 f8             	lea    edx,[ebp-0x8]
+ 7a7:	8b 45 b4             	mov    eax,DWORD PTR [ebp-0x4c]
+ 7aa:	b9 08 00 00 00       	mov    ecx,0x8
+ 7af:	e8 1c f9 ff ff       	call   d0 <copy_to_user>
+ 7b4:	89 45 e0             	mov    DWORD PTR [ebp-0x20],eax
+			if(errChkKeyData == -EFAULT) {
+ 7b7:	83 7d e0 f2          	cmp    DWORD PTR [ebp-0x20],0xfffffff2
+ 7bb:	75 27                	jne    7e4 <rbtree_driver_read+0x224>
+				printk("Get_User Error\n");
+ 7bd:	68 69 02 00 00       	push   0x269
+ 7c2:	e8 fc ff ff ff       	call   7c3 <rbtree_driver_read+0x203>
+ 7c7:	83 c4 04             	add    esp,0x4
+				spin_unlock(&(rbtree_devp->spinlockDevice));
+ 7ca:	8b 45 c8             	mov    eax,DWORD PTR [ebp-0x38]
+ 7cd:	05 58 01 00 00       	add    eax,0x158
+ 7d2:	e8 73 f8 ff ff       	call   4a <spin_unlock>
+				return PTR_ERR(node);
+ 7d7:	8b 45 d4             	mov    eax,DWORD PTR [ebp-0x2c]
+ 7da:	e8 26 f8 ff ff       	call   5 <PTR_ERR>
+ 7df:	e9 d9 01 00 00       	jmp    9bd <rbtree_driver_read+0x3fd>
+			}
+			// Update Variables
+			//count = count - sizeof(struct keydata_to_read);
+			bytes_read = bytes_read + sizeof(struct keydata_to_read);
+ 7e4:	8b 45 cc             	mov    eax,DWORD PTR [ebp-0x34]
+ 7e7:	83 c0 08             	add    eax,0x8
+ 7ea:	89 45 cc             	mov    DWORD PTR [ebp-0x34],eax
+
+			// UNLOCK
+			spin_unlock(&(rbtree_devp->spinlockDevice));
+ 7ed:	8b 45 c8             	mov    eax,DWORD PTR [ebp-0x38]
+ 7f0:	05 58 01 00 00       	add    eax,0x158
+ 7f5:	e8 50 f8 ff ff       	call   4a <spin_unlock>
+
+			// Most read functions return the number of bytes put into the buffer
+			return bytes_read;
+ 7fa:	8b 45 cc             	mov    eax,DWORD PTR [ebp-0x34]
+ 7fd:	e9 bb 01 00 00       	jmp    9bd <rbtree_driver_read+0x3fd>
+		}
+	} 
+	else if(rbtree_devp->readOrderDevice == 1) {
+ 802:	8b 45 c8             	mov    eax,DWORD PTR [ebp-0x38]
+ 805:	8b 80 58 01 00 00    	mov    eax,DWORD PTR [eax+0x158]
+ 80b:	83 f8 01             	cmp    eax,0x1
+ 80e:	0f 85 8a 01 00 00    	jne    99e <rbtree_driver_read+0x3de>
+		// read in descending order
+		printk("Descending Order\n");
+ 814:	68 79 02 00 00       	push   0x279
+ 819:	e8 fc ff ff ff       	call   81a <rbtree_driver_read+0x25a>
+ 81e:	83 c4 04             	add    esp,0x4
+			
+		if(rbtree_devp->treeCursor == NULL) {
+ 821:	8b 45 c8             	mov    eax,DWORD PTR [ebp-0x38]
+ 824:	8b 80 50 01 00 00    	mov    eax,DWORD PTR [eax+0x150]
+ 82a:	85 c0                	test   eax,eax
+ 82c:	75 29                	jne    857 <rbtree_driver_read+0x297>
+			// treeCursor has not been used yet
+			printk("Empty Tree\n");
+ 82e:	68 ee 01 00 00       	push   0x1ee
+ 833:	e8 fc ff ff ff       	call   834 <rbtree_driver_read+0x274>
+ 838:	83 c4 04             	add    esp,0x4
+			cursorHasBeenUsed = false;
+ 83b:	c6 45 bf 00          	mov    BYTE PTR [ebp-0x41],0x0
+			rbtree_devp->treeCursor = rb_last(&(rbtree_devp->mytree));
+ 83f:	8b 45 c8             	mov    eax,DWORD PTR [ebp-0x38]
+ 842:	05 54 01 00 00       	add    eax,0x154
+ 847:	e8 fc ff ff ff       	call   848 <rbtree_driver_read+0x288>
+ 84c:	89 c2                	mov    edx,eax
+ 84e:	8b 45 c8             	mov    eax,DWORD PTR [ebp-0x38]
+ 851:	89 90 50 01 00 00    	mov    DWORD PTR [eax+0x150],edx
+		}
+		if(rb_last(&(rbtree_devp->mytree)) == NULL) {
+ 857:	8b 45 c8             	mov    eax,DWORD PTR [ebp-0x38]
+ 85a:	05 54 01 00 00       	add    eax,0x154
+ 85f:	e8 fc ff ff ff       	call   860 <rbtree_driver_read+0x2a0>
+ 864:	85 c0                	test   eax,eax
+ 866:	75 17                	jne    87f <rbtree_driver_read+0x2bf>
+			// tree is empty
+
+			// UNLOCK
+			spin_unlock(&(rbtree_devp->spinlockDevice));
+ 868:	8b 45 c8             	mov    eax,DWORD PTR [ebp-0x38]
+ 86b:	05 58 01 00 00       	add    eax,0x158
+ 870:	e8 d5 f7 ff ff       	call   4a <spin_unlock>
+			return -EINVAL;
+ 875:	b8 ea ff ff ff       	mov    eax,0xffffffea
+ 87a:	e9 3e 01 00 00       	jmp    9bd <rbtree_driver_read+0x3fd>
+		}
+		// test the node to read (the one after the current node we are on) to see if it is null
+		struct rb_node *testPrev = rb_prev(rbtree_devp->treeCursor);
+ 87f:	8b 45 c8             	mov    eax,DWORD PTR [ebp-0x38]
+ 882:	8b 80 50 01 00 00    	mov    eax,DWORD PTR [eax+0x150]
+ 888:	e8 fc ff ff ff       	call   889 <rbtree_driver_read+0x2c9>
+ 88d:	89 45 e4             	mov    DWORD PTR [ebp-0x1c],eax
+		if(testPrev == NULL && cursorHasBeenUsed == true) {
+ 890:	83 7d e4 00          	cmp    DWORD PTR [ebp-0x1c],0x0
+ 894:	75 2a                	jne    8c0 <rbtree_driver_read+0x300>
+ 896:	80 7d bf 00          	cmp    BYTE PTR [ebp-0x41],0x0
+ 89a:	74 24                	je     8c0 <rbtree_driver_read+0x300>
+			printk("The prev node is empty.\n");
+ 89c:	68 8b 02 00 00       	push   0x28b
+ 8a1:	e8 fc ff ff ff       	call   8a2 <rbtree_driver_read+0x2e2>
+ 8a6:	83 c4 04             	add    esp,0x4
+
+			// UNLOCK
+			spin_unlock(&(rbtree_devp->spinlockDevice));
+ 8a9:	8b 45 c8             	mov    eax,DWORD PTR [ebp-0x38]
+ 8ac:	05 58 01 00 00       	add    eax,0x158
+ 8b1:	e8 94 f7 ff ff       	call   4a <spin_unlock>
+			return -EINVAL;
+ 8b6:	b8 ea ff ff ff       	mov    eax,0xffffffea
+ 8bb:	e9 fd 00 00 00       	jmp    9bd <rbtree_driver_read+0x3fd>
+		} else {
+			// update cursor
+			if(cursorHasBeenUsed == true) {
+ 8c0:	80 7d bf 00          	cmp    BYTE PTR [ebp-0x41],0x0
+ 8c4:	74 1b                	je     8e1 <rbtree_driver_read+0x321>
+				rbtree_devp->treeCursor = rb_prev(rbtree_devp->treeCursor);
+ 8c6:	8b 45 c8             	mov    eax,DWORD PTR [ebp-0x38]
+ 8c9:	8b 80 50 01 00 00    	mov    eax,DWORD PTR [eax+0x150]
+ 8cf:	e8 fc ff ff ff       	call   8d0 <rbtree_driver_read+0x310>
+ 8d4:	89 c2                	mov    edx,eax
+ 8d6:	8b 45 c8             	mov    eax,DWORD PTR [ebp-0x38]
+ 8d9:	89 90 50 01 00 00    	mov    DWORD PTR [eax+0x150],edx
+ 8df:	eb 04                	jmp    8e5 <rbtree_driver_read+0x325>
+			} else {
+				cursorHasBeenUsed = true;
+ 8e1:	c6 45 bf 01          	mov    BYTE PTR [ebp-0x41],0x1
+			}
+
+			//rbtree_devp->treeCursor = rb_prev(rbtree_devp->treeCursor);
+			// send data to user
+			struct rb_node *node = rbtree_devp->treeCursor;
+ 8e5:	8b 45 c8             	mov    eax,DWORD PTR [ebp-0x38]
+ 8e8:	8b 80 50 01 00 00    	mov    eax,DWORD PTR [eax+0x150]
+ 8ee:	89 45 e8             	mov    DWORD PTR [ebp-0x18],eax
+			sendToUser.key = rb_entry(node, struct rb_object, node)->key;
+ 8f1:	8b 45 e8             	mov    eax,DWORD PTR [ebp-0x18]
+ 8f4:	89 45 ec             	mov    DWORD PTR [ebp-0x14],eax
+ 8f7:	8b 45 ec             	mov    eax,DWORD PTR [ebp-0x14]
+ 8fa:	83 e8 08             	sub    eax,0x8
+ 8fd:	8b 00                	mov    eax,DWORD PTR [eax]
+ 8ff:	89 45 f8             	mov    DWORD PTR [ebp-0x8],eax
+    		sendToUser.data = rb_entry(node, struct rb_object, node)->data;
+ 902:	8b 45 e8             	mov    eax,DWORD PTR [ebp-0x18]
+ 905:	89 45 f0             	mov    DWORD PTR [ebp-0x10],eax
+ 908:	8b 45 f0             	mov    eax,DWORD PTR [ebp-0x10]
+ 90b:	83 e8 08             	sub    eax,0x8
+ 90e:	8b 40 04             	mov    eax,DWORD PTR [eax+0x4]
+ 911:	89 45 fc             	mov    DWORD PTR [ebp-0x4],eax
+    		printk("KEY = %d\n", sendToUser.key);
+ 914:	8b 45 f8             	mov    eax,DWORD PTR [ebp-0x8]
+ 917:	50                   	push   eax
+ 918:	68 e3 00 00 00       	push   0xe3
+ 91d:	e8 fc ff ff ff       	call   91e <rbtree_driver_read+0x35e>
+ 922:	83 c4 08             	add    esp,0x8
+    		printk("DATA = %d\n", sendToUser.data);
+ 925:	8b 45 fc             	mov    eax,DWORD PTR [ebp-0x4]
+ 928:	50                   	push   eax
+ 929:	68 ed 00 00 00       	push   0xed
+ 92e:	e8 fc ff ff ff       	call   92f <rbtree_driver_read+0x36f>
+ 933:	83 c4 08             	add    esp,0x8
+    		printk("COUNT READ = %zu", count);
+ 936:	ff 75 b0             	push   DWORD PTR [ebp-0x50]
+ 939:	68 58 02 00 00       	push   0x258
+ 93e:	e8 fc ff ff ff       	call   93f <rbtree_driver_read+0x37f>
+ 943:	83 c4 08             	add    esp,0x8
+
+    		int errChkKeyData = copy_to_user(buf, &sendToUser, sizeof(struct keydata_to_read));
+ 946:	8d 55 f8             	lea    edx,[ebp-0x8]
+ 949:	8b 45 b4             	mov    eax,DWORD PTR [ebp-0x4c]
+ 94c:	b9 08 00 00 00       	mov    ecx,0x8
+ 951:	e8 7a f7 ff ff       	call   d0 <copy_to_user>
+ 956:	89 45 f4             	mov    DWORD PTR [ebp-0xc],eax
+			if(errChkKeyData == -EFAULT) {
+ 959:	83 7d f4 f2          	cmp    DWORD PTR [ebp-0xc],0xfffffff2
+ 95d:	75 24                	jne    983 <rbtree_driver_read+0x3c3>
+				printk("copy_to_user Error\n");
+ 95f:	68 a4 02 00 00       	push   0x2a4
+ 964:	e8 fc ff ff ff       	call   965 <rbtree_driver_read+0x3a5>
+ 969:	83 c4 04             	add    esp,0x4
+
+				// UNLOCK
+				spin_unlock(&(rbtree_devp->spinlockDevice));
+ 96c:	8b 45 c8             	mov    eax,DWORD PTR [ebp-0x38]
+ 96f:	05 58 01 00 00       	add    eax,0x158
+ 974:	e8 d1 f6 ff ff       	call   4a <spin_unlock>
+				return PTR_ERR(node);
+ 979:	8b 45 e8             	mov    eax,DWORD PTR [ebp-0x18]
+ 97c:	e8 84 f6 ff ff       	call   5 <PTR_ERR>
+ 981:	eb 3a                	jmp    9bd <rbtree_driver_read+0x3fd>
+			}
+			// Update Variables
+			bytes_read = bytes_read + sizeof(struct keydata_to_read);
+ 983:	8b 45 cc             	mov    eax,DWORD PTR [ebp-0x34]
+ 986:	83 c0 08             	add    eax,0x8
+ 989:	89 45 cc             	mov    DWORD PTR [ebp-0x34],eax
+
+			// UNLOCK
+			spin_unlock(&(rbtree_devp->spinlockDevice));
+ 98c:	8b 45 c8             	mov    eax,DWORD PTR [ebp-0x38]
+ 98f:	05 58 01 00 00       	add    eax,0x158
+ 994:	e8 b1 f6 ff ff       	call   4a <spin_unlock>
+
+			// Most read functions return the number of bytes put into the buffer
+			return bytes_read;
+ 999:	8b 45 cc             	mov    eax,DWORD PTR [ebp-0x34]
+ 99c:	eb 1f                	jmp    9bd <rbtree_driver_read+0x3fd>
+		}
+	} 
+	else {
+		printk("ioctl Error\n");
+ 99e:	68 b8 02 00 00       	push   0x2b8
+ 9a3:	e8 fc ff ff ff       	call   9a4 <rbtree_driver_read+0x3e4>
+ 9a8:	83 c4 04             	add    esp,0x4
+
+		// UNLOCK
+		spin_unlock(&(rbtree_devp->spinlockDevice));
+ 9ab:	8b 45 c8             	mov    eax,DWORD PTR [ebp-0x38]
+ 9ae:	05 58 01 00 00       	add    eax,0x158
+ 9b3:	e8 92 f6 ff ff       	call   4a <spin_unlock>
+		return -1;
+ 9b8:	b8 ff ff ff ff       	mov    eax,0xffffffff
+
+	}
+}
+ 9bd:	c9                   	leave  
+ 9be:	c3                   	ret    
+
+Disassembly of section .init.text:
+
+00000000 <init_module>:
+
+/*
+ * Driver Initialization
+ */
+int __init rbtree_driver_init(void)
+{
+   0:	55                   	push   ebp
+   1:	89 e5                	mov    ebp,esp
+   3:	57                   	push   edi
+   4:	53                   	push   ebx
+   5:	83 ec 18             	sub    esp,0x18
+	int ret;
+	int time_since_boot;
+
+
+	// Request dynamic allocation of a device major number /
+	if (alloc_chrdev_region(&rbtree_dev_number, 0, 1, DEVICE_NAME) < 0) {
+   8:	68 c5 02 00 00       	push   0x2c5
+   d:	b9 01 00 00 00       	mov    ecx,0x1
+  12:	ba 00 00 00 00       	mov    edx,0x0
+  17:	b8 10 00 00 00       	mov    eax,0x10
+  1c:	e8 fc ff ff ff       	call   1d <init_module+0x1d>
+  21:	83 c4 04             	add    esp,0x4
+  24:	85 c0                	test   eax,eax
+  26:	79 17                	jns    3f <init_module+0x3f>
+			printk(KERN_DEBUG "Can't register device\n"); return -1;
+  28:	68 d0 02 00 00       	push   0x2d0
+  2d:	e8 fc ff ff ff       	call   2e <init_module+0x2e>
+  32:	83 c4 04             	add    esp,0x4
+  35:	b8 ff ff ff ff       	mov    eax,0xffffffff
+  3a:	e9 af 04 00 00       	jmp    4ee <init_module+0x4ee>
+	}
+
+	/* Populate sysfs entries */
+	rbtree_dev_class = class_create(THIS_MODULE, DEVICE_NAME);
+  3f:	b9 20 00 00 00       	mov    ecx,0x20
+  44:	ba c5 02 00 00       	mov    edx,0x2c5
+  49:	b8 00 00 00 00       	mov    eax,0x0
+  4e:	e8 fc ff ff ff       	call   4f <init_module+0x4f>
+  53:	a3 00 00 00 00       	mov    ds:0x0,eax
+
+	if(IS_ERR(rbtree_dev_class)) {
+  58:	a1 00 00 00 00       	mov    eax,ds:0x0
+  5d:	e8 0f 00 00 00       	call   71 <init_module+0x71>
+  62:	84 c0                	test   al,al
+  64:	74 2b                	je     91 <init_module+0x91>
+		// TODO: Add unregister_chrdev_region
+		printk("class_create(...) ERROR\n");
+  66:	68 e9 02 00 00       	push   0x2e9
+  6b:	e8 fc ff ff ff       	call   6c <init_module+0x6c>
+  70:	83 c4 04             	add    esp,0x4
+		// Release the major number /
+	    unregister_chrdev_region((rbtree_dev_number), 1);
+  73:	a1 10 00 00 00       	mov    eax,ds:0x10
+  78:	ba 01 00 00 00       	mov    edx,0x1
+  7d:	e8 fc ff ff ff       	call   7e <init_module+0x7e>
+		return(PTR_ERR(rbtree_dev_class));
+  82:	a1 00 00 00 00       	mov    eax,ds:0x0
+  87:	e8 01 00 00 00       	call   8d <init_module+0x8d>
+  8c:	e9 5d 04 00 00       	jmp    4ee <init_module+0x4ee>
+  91:	c7 45 e8 5c 01 00 00 	mov    DWORD PTR [ebp-0x18],0x15c
+  98:	c7 45 ec d0 00 00 00 	mov    DWORD PTR [ebp-0x14],0xd0
+  9f:	8b 55 ec             	mov    edx,DWORD PTR [ebp-0x14]
+  a2:	8b 45 e8             	mov    eax,DWORD PTR [ebp-0x18]
+  a5:	e8 fc ff ff ff       	call   a6 <init_module+0xa6>
+	}
+
+	// Allocate memory for the per-device structure */
+	rbtree_devp = kmalloc(sizeof(struct rbtree_dev), GFP_KERNEL);
+  aa:	a3 00 00 00 00       	mov    ds:0x0,eax
+		
+	if (!rbtree_devp) {
+  af:	a1 00 00 00 00       	mov    eax,ds:0x0
+  b4:	85 c0                	test   eax,eax
+  b6:	75 17                	jne    cf <init_module+0xcf>
+		printk("Bad Kmalloc\n"); return -ENOMEM;
+  b8:	68 06 01 00 00       	push   0x106
+  bd:	e8 fc ff ff ff       	call   be <init_module+0xbe>
+  c2:	83 c4 04             	add    esp,0x4
+  c5:	b8 f4 ff ff ff       	mov    eax,0xfffffff4
+  ca:	e9 1f 04 00 00       	jmp    4ee <init_module+0x4ee>
+	}
+
+	spin_lock_init(&(rbtree_devp->spinlockDevice));
+  cf:	a1 00 00 00 00       	mov    eax,ds:0x0
+  d4:	05 58 01 00 00       	add    eax,0x158
+  d9:	e8 2d 00 00 00       	call   10b <init_module+0x10b>
+
+	// set default read order value (can be changed with ioctl)
+	rbtree_devp->readOrderDevice = 0;
+  de:	a1 00 00 00 00       	mov    eax,ds:0x0
+  e3:	c7 80 58 01 00 00 00 	mov    DWORD PTR [eax+0x158],0x0
+  ea:	00 00 00 
+
+	// Request I/O region /
+	sprintf(rbtree_devp->name, DEVICE_NAME);
+  ed:	a1 00 00 00 00       	mov    eax,ds:0x0
+  f2:	83 c0 3c             	add    eax,0x3c
+  f5:	68 c5 02 00 00       	push   0x2c5
+  fa:	50                   	push   eax
+  fb:	e8 fc ff ff ff       	call   fc <init_module+0xfc>
+ 100:	83 c4 08             	add    esp,0x8
+
+	// Connect the file operations with the cdev/
+	cdev_init(&rbtree_devp->cdev, &rbtree_fops);
+ 103:	a1 00 00 00 00       	mov    eax,ds:0x0
+ 108:	ba 40 00 00 00       	mov    edx,0x40
+ 10d:	e8 fc ff ff ff       	call   10e <init_module+0x10e>
+	rbtree_devp->cdev.owner = THIS_MODULE;
+ 112:	a1 00 00 00 00       	mov    eax,ds:0x0
+ 117:	c7 40 24 00 00 00 00 	mov    DWORD PTR [eax+0x24],0x0
+
+	memset(rbtree_devp->in_string, 0, 256);
+ 11e:	a1 00 00 00 00       	mov    eax,ds:0x0
+ 123:	83 c0 50             	add    eax,0x50
+ 126:	b9 00 01 00 00       	mov    ecx,0x100
+ 12b:	bb 00 00 00 00       	mov    ebx,0x0
+ 130:	89 18                	mov    DWORD PTR [eax],ebx
+ 132:	89 5c 08 fc          	mov    DWORD PTR [eax+ecx*1-0x4],ebx
+ 136:	8d 50 04             	lea    edx,[eax+0x4]
+ 139:	83 e2 fc             	and    edx,0xfffffffc
+ 13c:	29 d0                	sub    eax,edx
+ 13e:	01 c1                	add    ecx,eax
+ 140:	83 e1 fc             	and    ecx,0xfffffffc
+ 143:	c1 e9 02             	shr    ecx,0x2
+ 146:	89 d7                	mov    edi,edx
+ 148:	89 d8                	mov    eax,ebx
+ 14a:	f3 ab                	rep stos DWORD PTR es:[edi],eax
+
+	// Initialize rb_tree root
+	rbtree_devp->mytree = RB_ROOT;
+ 14c:	a1 00 00 00 00       	mov    eax,ds:0x0
+ 151:	c7 80 54 01 00 00 00 	mov    DWORD PTR [eax+0x154],0x0
+ 158:	00 00 00 
+
+	// Initialize treeCursor to be the first element in
+	rbtree_devp->treeCursor = NULL;
+ 15b:	a1 00 00 00 00       	mov    eax,ds:0x0
+ 160:	c7 80 50 01 00 00 00 	mov    DWORD PTR [eax+0x150],0x0
+ 167:	00 00 00 
+
+	// Connect the major/minor number to the cdev /
+	ret = cdev_add(&rbtree_devp->cdev, (rbtree_dev_number), 1);
+ 16a:	a1 10 00 00 00       	mov    eax,ds:0x10
+ 16f:	8b 15 00 00 00 00    	mov    edx,DWORD PTR ds:0x0
+ 175:	89 d3                	mov    ebx,edx
+ 177:	b9 01 00 00 00       	mov    ecx,0x1
+ 17c:	89 c2                	mov    edx,eax
+ 17e:	89 d8                	mov    eax,ebx
+ 180:	e8 fc ff ff ff       	call   181 <init_module+0x181>
+ 185:	89 45 e0             	mov    DWORD PTR [ebp-0x20],eax
+
+	if (ret) {
+ 188:	83 7d e0 00          	cmp    DWORD PTR [ebp-0x20],0x0
+ 18c:	74 15                	je     1a3 <init_module+0x1a3>
+		printk("Bad cdev\n");
+ 18e:	68 02 03 00 00       	push   0x302
+ 193:	e8 fc ff ff ff       	call   194 <init_module+0x194>
+ 198:	83 c4 04             	add    esp,0x4
+		return ret;
+ 19b:	8b 45 e0             	mov    eax,DWORD PTR [ebp-0x20]
+ 19e:	e9 4b 03 00 00       	jmp    4ee <init_module+0x4ee>
+	}
+
+	// Send uevents to udev, so it'll create /dev nodes /
+	rbtree_dev_device = device_create(rbtree_dev_class, NULL, MKDEV(MAJOR(rbtree_dev_number), 0), NULL, DEVICE_NAME);
+ 1a3:	a1 10 00 00 00       	mov    eax,ds:0x10
+ 1a8:	25 00 00 f0 ff       	and    eax,0xfff00000
+ 1ad:	89 c2                	mov    edx,eax
+ 1af:	a1 00 00 00 00       	mov    eax,ds:0x0
+ 1b4:	68 c5 02 00 00       	push   0x2c5
+ 1b9:	6a 00                	push   0x0
+ 1bb:	52                   	push   edx
+ 1bc:	6a 00                	push   0x0
+ 1be:	50                   	push   eax
+ 1bf:	e8 fc ff ff ff       	call   1c0 <init_module+0x1c0>
+ 1c4:	83 c4 14             	add    esp,0x14
+ 1c7:	a3 14 00 00 00       	mov    ds:0x14,eax
+	
+	if(IS_ERR(rbtree_dev_device)) {
+ 1cc:	a1 14 00 00 00       	mov    eax,ds:0x14
+ 1d1:	e8 0f 00 00 00       	call   1e5 <init_module+0x1e5>
+ 1d6:	84 c0                	test   al,al
+ 1d8:	74 35                	je     20f <init_module+0x20f>
+		class_destroy(rbtree_dev_class);
+ 1da:	a1 00 00 00 00       	mov    eax,ds:0x0
+ 1df:	e8 fc ff ff ff       	call   1e0 <init_module+0x1e0>
+		// TODO: add unregister_chrdev_region
+		// Release the major number /
+	    unregister_chrdev_region((rbtree_dev_number), 1);
+ 1e4:	a1 10 00 00 00       	mov    eax,ds:0x10
+ 1e9:	ba 01 00 00 00       	mov    edx,0x1
+ 1ee:	e8 fc ff ff ff       	call   1ef <init_module+0x1ef>
+		printk("device_create(...) ERROR\n");
+ 1f3:	68 0c 03 00 00       	push   0x30c
+ 1f8:	e8 fc ff ff ff       	call   1f9 <init_module+0x1f9>
+ 1fd:	83 c4 04             	add    esp,0x4
+		return PTR_ERR(rbtree_dev_device);
+ 200:	a1 14 00 00 00       	mov    eax,ds:0x14
+ 205:	e8 01 00 00 00       	call   20b <init_module+0x20b>
+ 20a:	e9 df 02 00 00       	jmp    4ee <init_module+0x4ee>
+	}
+
+	//since on some systems jiffies is a very huge uninitialized value at boot and saved.
+	time_since_boot=(jiffies-INITIAL_JIFFIES)/HZ; 
+ 20f:	a1 00 00 00 00       	mov    eax,ds:0x0
+ 214:	05 30 75 00 00       	add    eax,0x7530
+ 219:	ba 1f 85 eb 51       	mov    edx,0x51eb851f
+ 21e:	f7 e2                	mul    edx
+ 220:	89 d0                	mov    eax,edx
+ 222:	c1 e8 05             	shr    eax,0x5
+ 225:	89 45 e4             	mov    DWORD PTR [ebp-0x1c],eax
+	sprintf(rbtree_devp->in_string, "Hi %s, this machine has been on for %d seconds", user_name, time_since_boot);
+ 228:	a1 00 00 00 00       	mov    eax,ds:0x0
+ 22d:	8b 15 00 00 00 00    	mov    edx,DWORD PTR ds:0x0
+ 233:	83 c2 50             	add    edx,0x50
+ 236:	ff 75 e4             	push   DWORD PTR [ebp-0x1c]
+ 239:	50                   	push   eax
+ 23a:	68 28 03 00 00       	push   0x328
+ 23f:	52                   	push   edx
+ 240:	e8 fc ff ff ff       	call   241 <init_module+0x241>
+ 245:	83 c4 10             	add    esp,0x10
+	
+	
+
+	printk("rbtree driver initialized.\n'%s'\n",rbtree_devp->in_string);
+ 248:	a1 00 00 00 00       	mov    eax,ds:0x0
+ 24d:	83 c0 50             	add    eax,0x50
+ 250:	50                   	push   eax
+ 251:	68 58 03 00 00       	push   0x358
+ 256:	e8 fc ff ff ff       	call   257 <init_module+0x257>
+ 25b:	83 c4 08             	add    esp,0x8
+
+
+
+	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	
+	printk("Initialize SECOND RB_TREE\n");
+ 25e:	68 79 03 00 00       	push   0x379
+ 263:	e8 fc ff ff ff       	call   264 <init_module+0x264>
+ 268:	83 c4 04             	add    esp,0x4
+
+	if (alloc_chrdev_region(&rbtree_dev_number_second, 0, 1, DEVICE_NAME_2) < 0) {
+ 26b:	68 94 03 00 00       	push   0x394
+ 270:	b9 01 00 00 00       	mov    ecx,0x1
+ 275:	ba 00 00 00 00       	mov    edx,0x0
+ 27a:	b8 18 00 00 00       	mov    eax,0x18
+ 27f:	e8 fc ff ff ff       	call   280 <init_module+0x280>
+ 284:	83 c4 04             	add    esp,0x4
+ 287:	85 c0                	test   eax,eax
+ 289:	79 17                	jns    2a2 <init_module+0x2a2>
+			printk(KERN_DEBUG "Can't register device\n"); return -1;
+ 28b:	68 d0 02 00 00       	push   0x2d0
+ 290:	e8 fc ff ff ff       	call   291 <init_module+0x291>
+ 295:	83 c4 04             	add    esp,0x4
+ 298:	b8 ff ff ff ff       	mov    eax,0xffffffff
+ 29d:	e9 4c 02 00 00       	jmp    4ee <init_module+0x4ee>
+	}
+
+	// Populate sysfs entries /
+	rbtree_dev_class_second = class_create(THIS_MODULE, DEVICE_NAME_2);
+ 2a2:	b9 20 00 00 00       	mov    ecx,0x20
+ 2a7:	ba 94 03 00 00       	mov    edx,0x394
+ 2ac:	b8 00 00 00 00       	mov    eax,0x0
+ 2b1:	e8 fc ff ff ff       	call   2b2 <init_module+0x2b2>
+ 2b6:	a3 00 00 00 00       	mov    ds:0x0,eax
+
+	if(IS_ERR(rbtree_dev_class_second)) {
+ 2bb:	a1 00 00 00 00       	mov    eax,ds:0x0
+ 2c0:	e8 0f 00 00 00       	call   2d4 <init_module+0x2d4>
+ 2c5:	84 c0                	test   al,al
+ 2c7:	74 2b                	je     2f4 <init_module+0x2f4>
+		// TODO: Add unregister_chrdev_region
+		printk("class_create(...) ERROR\n");
+ 2c9:	68 e9 02 00 00       	push   0x2e9
+ 2ce:	e8 fc ff ff ff       	call   2cf <init_module+0x2cf>
+ 2d3:	83 c4 04             	add    esp,0x4
+		// Release the major number /
+	    unregister_chrdev_region((rbtree_dev_number_second), 1);
+ 2d6:	a1 18 00 00 00       	mov    eax,ds:0x18
+ 2db:	ba 01 00 00 00       	mov    edx,0x1
+ 2e0:	e8 fc ff ff ff       	call   2e1 <init_module+0x2e1>
+		return(PTR_ERR(rbtree_dev_class_second));
+ 2e5:	a1 00 00 00 00       	mov    eax,ds:0x0
+ 2ea:	e8 01 00 00 00       	call   2f0 <init_module+0x2f0>
+ 2ef:	e9 fa 01 00 00       	jmp    4ee <init_module+0x4ee>
+ 2f4:	c7 45 f0 5c 01 00 00 	mov    DWORD PTR [ebp-0x10],0x15c
+ 2fb:	c7 45 f4 d0 00 00 00 	mov    DWORD PTR [ebp-0xc],0xd0
+ 302:	8b 55 f4             	mov    edx,DWORD PTR [ebp-0xc]
+ 305:	8b 45 f0             	mov    eax,DWORD PTR [ebp-0x10]
+ 308:	e8 fc ff ff ff       	call   309 <init_module+0x309>
+	}
+
+	// Allocate memory for the per-device structure /
+	rbtree_devp_second = kmalloc(sizeof(struct rbtree_dev), GFP_KERNEL);
+ 30d:	a3 00 00 00 00       	mov    ds:0x0,eax
+
+	memset(rbtree_devp_second, 0, sizeof(struct rbtree_dev));
+ 312:	a1 00 00 00 00       	mov    eax,ds:0x0
+ 317:	b9 5c 01 00 00       	mov    ecx,0x15c
+ 31c:	bb 00 00 00 00       	mov    ebx,0x0
+ 321:	89 18                	mov    DWORD PTR [eax],ebx
+ 323:	89 5c 08 fc          	mov    DWORD PTR [eax+ecx*1-0x4],ebx
+ 327:	8d 50 04             	lea    edx,[eax+0x4]
+ 32a:	83 e2 fc             	and    edx,0xfffffffc
+ 32d:	29 d0                	sub    eax,edx
+ 32f:	01 c1                	add    ecx,eax
+ 331:	83 e1 fc             	and    ecx,0xfffffffc
+ 334:	c1 e9 02             	shr    ecx,0x2
+ 337:	89 d7                	mov    edi,edx
+ 339:	89 d8                	mov    eax,ebx
+ 33b:	f3 ab                	rep stos DWORD PTR es:[edi],eax
+
+		
+	if (!rbtree_devp_second) {
+ 33d:	a1 00 00 00 00       	mov    eax,ds:0x0
+ 342:	85 c0                	test   eax,eax
+ 344:	75 17                	jne    35d <init_module+0x35d>
+		printk("Bad Kmalloc\n"); return -ENOMEM;
+ 346:	68 06 01 00 00       	push   0x106
+ 34b:	e8 fc ff ff ff       	call   34c <init_module+0x34c>
+ 350:	83 c4 04             	add    esp,0x4
+ 353:	b8 f4 ff ff ff       	mov    eax,0xfffffff4
+ 358:	e9 91 01 00 00       	jmp    4ee <init_module+0x4ee>
+	}
+
+	spin_lock_init(&(rbtree_devp_second->spinlockDevice));
+ 35d:	a1 00 00 00 00       	mov    eax,ds:0x0
+ 362:	05 58 01 00 00       	add    eax,0x158
+ 367:	e8 2d 00 00 00       	call   399 <init_module+0x399>
+
+	// set default read order value (can be changed with ioctl)
+	rbtree_devp_second->readOrderDevice = 1;
+ 36c:	a1 00 00 00 00       	mov    eax,ds:0x0
+ 371:	c7 80 58 01 00 00 01 	mov    DWORD PTR [eax+0x158],0x1
+ 378:	00 00 00 
+
+	// Request I/O region /
+	sprintf(rbtree_devp_second->name, DEVICE_NAME_2);
+ 37b:	a1 00 00 00 00       	mov    eax,ds:0x0
+ 380:	83 c0 3c             	add    eax,0x3c
+ 383:	68 94 03 00 00       	push   0x394
+ 388:	50                   	push   eax
+ 389:	e8 fc ff ff ff       	call   38a <init_module+0x38a>
+ 38e:	83 c4 08             	add    esp,0x8
+
+	// Connect the file operations with the cdev/
+	cdev_init(&rbtree_devp_second->cdev, &rbtree_fops_second);
+ 391:	a1 00 00 00 00       	mov    eax,ds:0x0
+ 396:	ba c0 00 00 00       	mov    edx,0xc0
+ 39b:	e8 fc ff ff ff       	call   39c <init_module+0x39c>
+	rbtree_devp_second->cdev.owner = THIS_MODULE;
+ 3a0:	a1 00 00 00 00       	mov    eax,ds:0x0
+ 3a5:	c7 40 24 00 00 00 00 	mov    DWORD PTR [eax+0x24],0x0
+
+	memset(rbtree_devp_second->in_string, 0, 256);
+ 3ac:	a1 00 00 00 00       	mov    eax,ds:0x0
+ 3b1:	83 c0 50             	add    eax,0x50
+ 3b4:	b9 00 01 00 00       	mov    ecx,0x100
+ 3b9:	bb 00 00 00 00       	mov    ebx,0x0
+ 3be:	89 18                	mov    DWORD PTR [eax],ebx
+ 3c0:	89 5c 08 fc          	mov    DWORD PTR [eax+ecx*1-0x4],ebx
+ 3c4:	8d 50 04             	lea    edx,[eax+0x4]
+ 3c7:	83 e2 fc             	and    edx,0xfffffffc
+ 3ca:	29 d0                	sub    eax,edx
+ 3cc:	01 c1                	add    ecx,eax
+ 3ce:	83 e1 fc             	and    ecx,0xfffffffc
+ 3d1:	c1 e9 02             	shr    ecx,0x2
+ 3d4:	89 d7                	mov    edi,edx
+ 3d6:	89 d8                	mov    eax,ebx
+ 3d8:	f3 ab                	rep stos DWORD PTR es:[edi],eax
+
+	// Initialize rb_tree root
+	rbtree_devp_second->mytree = RB_ROOT;
+ 3da:	a1 00 00 00 00       	mov    eax,ds:0x0
+ 3df:	c7 80 54 01 00 00 00 	mov    DWORD PTR [eax+0x154],0x0
+ 3e6:	00 00 00 
+
+	// Initialize treeCursor to be the first element in
+	rbtree_devp_second->treeCursor = NULL;
+ 3e9:	a1 00 00 00 00       	mov    eax,ds:0x0
+ 3ee:	c7 80 50 01 00 00 00 	mov    DWORD PTR [eax+0x150],0x0
+ 3f5:	00 00 00 
+
+	// Connect the major/minor number to the cdev /
+	ret = cdev_add(&rbtree_devp_second->cdev, (rbtree_dev_number_second), 1);
+ 3f8:	a1 18 00 00 00       	mov    eax,ds:0x18
+ 3fd:	8b 15 00 00 00 00    	mov    edx,DWORD PTR ds:0x0
+ 403:	89 d3                	mov    ebx,edx
+ 405:	b9 01 00 00 00       	mov    ecx,0x1
+ 40a:	89 c2                	mov    edx,eax
+ 40c:	89 d8                	mov    eax,ebx
+ 40e:	e8 fc ff ff ff       	call   40f <init_module+0x40f>
+ 413:	89 45 e0             	mov    DWORD PTR [ebp-0x20],eax
+
+	if (ret) {
+ 416:	83 7d e0 00          	cmp    DWORD PTR [ebp-0x20],0x0
+ 41a:	74 15                	je     431 <init_module+0x431>
+		printk("Bad cdev\n");
+ 41c:	68 02 03 00 00       	push   0x302
+ 421:	e8 fc ff ff ff       	call   422 <init_module+0x422>
+ 426:	83 c4 04             	add    esp,0x4
+		return ret;
+ 429:	8b 45 e0             	mov    eax,DWORD PTR [ebp-0x20]
+ 42c:	e9 bd 00 00 00       	jmp    4ee <init_module+0x4ee>
+	}
+
+	// Send uevents to udev, so it'll create /dev nodes /
+	rbtree_dev_device_second = device_create(rbtree_dev_class_second, NULL, MKDEV(MAJOR(rbtree_dev_number_second), 0), NULL, DEVICE_NAME_2);
+ 431:	a1 18 00 00 00       	mov    eax,ds:0x18
+ 436:	25 00 00 f0 ff       	and    eax,0xfff00000
+ 43b:	89 c2                	mov    edx,eax
+ 43d:	a1 00 00 00 00       	mov    eax,ds:0x0
+ 442:	68 94 03 00 00       	push   0x394
+ 447:	6a 00                	push   0x0
+ 449:	52                   	push   edx
+ 44a:	6a 00                	push   0x0
+ 44c:	50                   	push   eax
+ 44d:	e8 fc ff ff ff       	call   44e <init_module+0x44e>
+ 452:	83 c4 14             	add    esp,0x14
+ 455:	a3 1c 00 00 00       	mov    ds:0x1c,eax
+	
+	if(IS_ERR(rbtree_dev_device_second)) {
+ 45a:	a1 1c 00 00 00       	mov    eax,ds:0x1c
+ 45f:	e8 0f 00 00 00       	call   473 <init_module+0x473>
+ 464:	84 c0                	test   al,al
+ 466:	74 32                	je     49a <init_module+0x49a>
+		class_destroy(rbtree_dev_class_second);
+ 468:	a1 00 00 00 00       	mov    eax,ds:0x0
+ 46d:	e8 fc ff ff ff       	call   46e <init_module+0x46e>
+		// TODO: add unregister_chrdev_region
+		// Release the major number /
+	    unregister_chrdev_region((rbtree_dev_number_second), 1);
+ 472:	a1 18 00 00 00       	mov    eax,ds:0x18
+ 477:	ba 01 00 00 00       	mov    edx,0x1
+ 47c:	e8 fc ff ff ff       	call   47d <init_module+0x47d>
+		printk("device_create(...) ERROR\n");
+ 481:	68 0c 03 00 00       	push   0x30c
+ 486:	e8 fc ff ff ff       	call   487 <init_module+0x487>
+ 48b:	83 c4 04             	add    esp,0x4
+		return PTR_ERR(rbtree_dev_device_second);
+ 48e:	a1 1c 00 00 00       	mov    eax,ds:0x1c
+ 493:	e8 01 00 00 00       	call   499 <init_module+0x499>
+ 498:	eb 54                	jmp    4ee <init_module+0x4ee>
+	}
+
+	//since on some systems jiffies is a very huge uninitialized value at boot and saved.
+	time_since_boot=(jiffies-INITIAL_JIFFIES)/HZ; 
+ 49a:	a1 00 00 00 00       	mov    eax,ds:0x0
+ 49f:	05 30 75 00 00       	add    eax,0x7530
+ 4a4:	ba 1f 85 eb 51       	mov    edx,0x51eb851f
+ 4a9:	f7 e2                	mul    edx
+ 4ab:	89 d0                	mov    eax,edx
+ 4ad:	c1 e8 05             	shr    eax,0x5
+ 4b0:	89 45 e4             	mov    DWORD PTR [ebp-0x1c],eax
+	sprintf(rbtree_devp_second->in_string, "Hi %s, this machine has been on for %d seconds", user_name, time_since_boot);
+ 4b3:	a1 00 00 00 00       	mov    eax,ds:0x0
+ 4b8:	8b 15 00 00 00 00    	mov    edx,DWORD PTR ds:0x0
+ 4be:	83 c2 50             	add    edx,0x50
+ 4c1:	ff 75 e4             	push   DWORD PTR [ebp-0x1c]
+ 4c4:	50                   	push   eax
+ 4c5:	68 28 03 00 00       	push   0x328
+ 4ca:	52                   	push   edx
+ 4cb:	e8 fc ff ff ff       	call   4cc <init_module+0x4cc>
+ 4d0:	83 c4 10             	add    esp,0x10
+	
+	
+
+	printk("rbtree driver SECOND initialized.\n'%s'\n",rbtree_devp_second->in_string);
+ 4d3:	a1 00 00 00 00       	mov    eax,ds:0x0
+ 4d8:	83 c0 50             	add    eax,0x50
+ 4db:	50                   	push   eax
+ 4dc:	68 a0 03 00 00       	push   0x3a0
+ 4e1:	e8 fc ff ff ff       	call   4e2 <init_module+0x4e2>
+ 4e6:	83 c4 08             	add    esp,0x8
+	
+	return 0;
+ 4e9:	b8 00 00 00 00       	mov    eax,0x0
+}
+ 4ee:	8d 65 f8             	lea    esp,[ebp-0x8]
+ 4f1:	5b                   	pop    ebx
+ 4f2:	5f                   	pop    edi
+ 4f3:	5d                   	pop    ebp
+ 4f4:	c3                   	ret    
+
+Disassembly of section .exit.text:
+
+00000000 <cleanup_module>:
+
+
+/* Driver Exit */
+void __exit rbtree_driver_exit(void)
+{
+   0:	55                   	push   ebp
+   1:	89 e5                	mov    ebp,esp
+	// device_remove_file(rbtree_dev_device, &dev_attr_xxx);
+
+	printk("release first tree\n");
+   3:	68 c8 03 00 00       	push   0x3c8
+   8:	e8 fc ff ff ff       	call   9 <cleanup_module+0x9>
+   d:	83 c4 04             	add    esp,0x4
+	/* Release the major number */
+	unregister_chrdev_region((rbtree_dev_number), 1);
+  10:	a1 10 00 00 00       	mov    eax,ds:0x10
+  15:	ba 01 00 00 00       	mov    edx,0x1
+  1a:	e8 fc ff ff ff       	call   1b <cleanup_module+0x1b>
+
+	/* Destroy device */
+	device_destroy (rbtree_dev_class, MKDEV(MAJOR(rbtree_dev_number), 0));
+  1f:	a1 10 00 00 00       	mov    eax,ds:0x10
+  24:	25 00 00 f0 ff       	and    eax,0xfff00000
+  29:	89 c2                	mov    edx,eax
+  2b:	a1 00 00 00 00       	mov    eax,ds:0x0
+  30:	e8 fc ff ff ff       	call   31 <cleanup_module+0x31>
+	cdev_del(&rbtree_devp->cdev);
+  35:	a1 00 00 00 00       	mov    eax,ds:0x0
+  3a:	e8 fc ff ff ff       	call   3b <cleanup_module+0x3b>
+	kfree(rbtree_devp);
+  3f:	a1 00 00 00 00       	mov    eax,ds:0x0
+  44:	e8 fc ff ff ff       	call   45 <cleanup_module+0x45>
+	
+	/* Destroy driver_class */
+	class_destroy(rbtree_dev_class);
+  49:	a1 00 00 00 00       	mov    eax,ds:0x0
+  4e:	e8 fc ff ff ff       	call   4f <cleanup_module+0x4f>
+
+	//printk("rbtree driver removed.\n");
+
+	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	
+	printk("remove second tree\n");
+  53:	68 dc 03 00 00       	push   0x3dc
+  58:	e8 fc ff ff ff       	call   59 <cleanup_module+0x59>
+  5d:	83 c4 04             	add    esp,0x4
+	unregister_chrdev_region((rbtree_dev_number_second), 1);
+  60:	a1 18 00 00 00       	mov    eax,ds:0x18
+  65:	ba 01 00 00 00       	mov    edx,0x1
+  6a:	e8 fc ff ff ff       	call   6b <cleanup_module+0x6b>
+
+	// Destroy device /
+	device_destroy (rbtree_dev_class_second, MKDEV(MAJOR(rbtree_dev_number_second), 0));
+  6f:	a1 18 00 00 00       	mov    eax,ds:0x18
+  74:	25 00 00 f0 ff       	and    eax,0xfff00000
+  79:	89 c2                	mov    edx,eax
+  7b:	a1 00 00 00 00       	mov    eax,ds:0x0
+  80:	e8 fc ff ff ff       	call   81 <cleanup_module+0x81>
+	cdev_del(&rbtree_devp_second->cdev);
+  85:	a1 00 00 00 00       	mov    eax,ds:0x0
+  8a:	e8 fc ff ff ff       	call   8b <cleanup_module+0x8b>
+	kfree(rbtree_devp_second);
+  8f:	a1 00 00 00 00       	mov    eax,ds:0x0
+  94:	e8 fc ff ff ff       	call   95 <cleanup_module+0x95>
+	
+	// Destroy driver_class /
+	class_destroy(rbtree_dev_class_second);
+  99:	a1 00 00 00 00       	mov    eax,ds:0x0
+  9e:	e8 fc ff ff ff       	call   9f <cleanup_module+0x9f>
+	
+	printk("rbtree driver removed.\n");
+  a3:	68 f0 03 00 00       	push   0x3f0
+  a8:	e8 fc ff ff ff       	call   a9 <cleanup_module+0xa9>
+  ad:	83 c4 04             	add    esp,0x4
+
+	return;
+  b0:	90                   	nop
+
+}
+  b1:	c9                   	leave  
+  b2:	c3                   	ret    

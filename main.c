@@ -22,7 +22,7 @@
 #include <pthread.h>
 #include <sched.h>
 
-#define MAX_RW_OPS 15
+#define MAX_RW_OPS 50
 
 // for generating the path to the current node in the rb driver
 struct keydata {
@@ -215,7 +215,7 @@ int read_from_kprobe_driver(int probe_fd) {
 
 
 
-// TREE
+// Write to an RB device (rand generator inside)
 int write_to_tree(int tree_fd) {
 
 	struct pair toDriver;
@@ -235,7 +235,7 @@ int write_to_tree(int tree_fd) {
 
 
 
-
+// Write to an RB Device (provide key and data)
 int write_pair_to_tree(int tree_fd, int key, int data) {
 
 	struct pair toDriver;
@@ -255,6 +255,18 @@ int write_pair_to_tree(int tree_fd, int key, int data) {
 
 
 
+int display_tree(int tree_fd) {
+	int ret;
+	ret = ioctl(tree_fd, 2);
+	if(ret != 0) {
+		fprintf(stderr, "Ioctl Command Did Not Work With Code = %d\n", ret);
+		exit(-1);
+	}
+	printf("Displayed Contents\n");
+	return 0;
+}
+
+
 /*
 change_tree_read_order: 
 The command “read_order” to set up ascending or descending order that objects are to be 
@@ -269,21 +281,6 @@ ting  from  the object with the maximal key.
 Otherwise, -1 is returned in the kernel and errno is set to EINVAL.
 
 */
-
-
-int display_tree(int tree_fd) {
-	int ret;
-	ret = ioctl(tree_fd, 2);
-	if(ret != 0) {
-		fprintf(stderr, "Ioctl Command Did Not Work With Code = %d\n", ret);
-		exit(-1);
-	}
-	printf("Displayed Contents\n");
-	return 0;
-}
-
-
-
 int change_tree_read_order(int tree_fd, int read_order) {
 	int ret;
 	ret = ioctl(tree_fd, read_order);
@@ -294,7 +291,7 @@ int change_tree_read_order(int tree_fd, int read_order) {
 	return 0;
 }
 
-
+// Read the key and data of the cursor node in the tree (for simulation purposes return -1 if error and change read direction)
 int read_from_tree(int tree_fd) {
 	char buff[sizeof(struct pair)];
 	int res;
@@ -325,7 +322,7 @@ pthread_attr_t Thread_Populate_Tree1_Attr;
 pthread_t Thread_Populate_Tree2;
 pthread_attr_t Thread_Populate_Tree2_Attr;
 
-// Sum of read and write ops for each tree (should be protected by mutex)
+// Sum of read and write ops for each tree (should be protected by corresponding mutex since two threads will update value)
 pthread_mutex_t lock_tree1_rw_ops;
 int num_tree1_rw_ops;
 pthread_mutex_t lock_tree2_rw_ops;
@@ -351,6 +348,7 @@ pthread_attr_t Thread_RW_Tree2_Third_Attr;
 
 pthread_t Thread_RW_Tree2_Fourth;
 pthread_attr_t Thread_RW_Tree2_Fourth_Attr;
+
 
 // The kprobe thread directly controlled by a user
 // Can read/write/ioctl in any tree
@@ -380,6 +378,8 @@ void open_file_descriptors() {
 	return;
 }
 
+
+// Close connections to all used devices
 int close_file_descriptors() {
 
 	int ret = 0;
@@ -424,6 +424,8 @@ void init_locks() {
 
 }
 
+
+// Clear mutex locks 
 void clear_locks() {
 	int verify_mutex_cleared = -1;
 	verify_mutex_cleared = pthread_mutex_destroy(&lock_tree1_rw_ops);
@@ -587,7 +589,6 @@ void* simulate_RWI_Tree1() {
 			sleep(1);
 		}
 	}
-	//printf("Print Tree\n");
 	return (void*) 0;
 
 }
@@ -833,13 +834,45 @@ int main(int argc, char **argv) {
 
 	/////////////////////////////////////////////////////////////
 
+	printf("Make fourth pthread\n");
+	/*
+	pthread_t Thread_RW_Tree2_Fourth;
+	pthread_attr_t Thread_RW_Tree2_Fourth_Attr;
+
+	*/
+
+
+	int did_fourth_thread = -1;
+	int verify_fourth_attr = -1;
+
+
+
+	// inherit scheduling attributes from the creating thread
+	verify_fourth_attr = pthread_attr_setinheritsched(&Thread_RW_Tree2_Fourth_Attr, PTHREAD_INHERIT_SCHED);
+	if(verify_fourth_attr != 0) {
+		fprintf(stderr, "verify_fourth_attr inherit schedule failed with code = %d\n", verify_fourth_attr);
+		exit(-1);
+	}
+
+
+	// Create Lower Priority Thread
+	did_fourth_thread = pthread_create(&Thread_RW_Tree2_Fourth, &Thread_RW_Tree2_Fourth_Attr, simulate_RWI_Tree_Second, NULL);
+	if(did_fourth_thread != 0) {
+		fprintf(stderr, "did_fourth_thread error code = %d\n", did_fourth_thread);
+		exit(-1);
+	}
+
+	printf("Created fourth thread\n");
+
+
 	// Join all remaining pthreads
 	pthread_join(Thread_RW_Tree2_Third, NULL);
+	pthread_join(Thread_RW_Tree2_Fourth, NULL);
 
 	printf("All pthreads joined\n");
 
 	printf("Write to kprobe driver\n");
-	
+
 	write_to_kprobe_driver(probe_fd);
 	write_pair_to_tree(tree1_fd, 200, 200);	
 	read_from_kprobe_driver(probe_fd);
