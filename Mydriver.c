@@ -260,8 +260,8 @@ ssize_t rbtree_driver_write(struct file *file, const char *buf,
 			spin_unlock(&(rbtree_devp->spinlockDevice));
 			return PTR_ERR(buf);
 		}
-	printk("KEY = %d\n", intermediate.key);
-	printk("DATA = %d\n", intermediate.data);
+	//printk("KEY = %d\n", intermediate.key);
+	//printk("DATA = %d\n", intermediate.data);
 
 	int keyToInsert = (int) intermediate.key;
 	int dataToInsert = (int) intermediate.data;
@@ -298,27 +298,41 @@ ssize_t rbtree_driver_write(struct file *file, const char *buf,
 			kfree(nodeToInsert);
 		}
 	}
-				
+		
+
+
+	// Display Tree
 	struct rb_node *node;
-	//printk("Entering Loop\n");
-    /*for (node = rb_first(&(rbtree_devp->mytree)); node != NULL; node = rb_next(node)) {
-    	printk("key=%d\n", rb_entry(node, struct rb_object, node)->key);
-    	if(rb_next(node) == NULL) {
-    		break;
+	if(rbtree_devp->readOrderDevice == 0) {
+		printk("Display Tree In Ascending Order\n");
+
+		for (node = rb_first(&(rbtree_devp->mytree)); node != NULL; node = rb_next(node)) {
+    		printk("key=%d\n", rb_entry(node, struct rb_object, node)->key);
+    		printk("data=%d\n", rb_entry(node, struct rb_object, node)->data);
+    		if(rb_next(node) == NULL) {
+    			break;
+    		}
     	}
 
-    }
+	}
+	else {
+		printk("Display Tree In DESCENDING Order\n");
+
+    	for (node = rb_last(&(rbtree_devp->mytree)); node != NULL; node = rb_prev(node)) {
+    		printk("key=%d\n", rb_entry(node, struct rb_object, node)->key);
+    		printk("data=%d\n", rb_entry(node, struct rb_object, node)->data);
+
+    		if(rb_prev(node) == NULL) {
+    			break;
+    		}
+
+    	}
+
+	}
     
-    printk("Entering Reverse Loop\n");
-    for (node = rb_last(&(rbtree_devp->mytree)); node != NULL; node = rb_prev(node)) {
-    	printk("key=%d\n", rb_entry(node, struct rb_object, node)->key);
-    	if(rb_prev(node) == NULL) {
-    		printk("RB_NEXT == NULL\n");
-    		break;
-    	}
-
-    }
-    */
+    
+    
+    
 	
 	// UNLOCK
 	spin_unlock(&(rbtree_devp->spinlockDevice));
@@ -362,30 +376,7 @@ long rbtree_driver_unlocked_ioctl(struct file *file, unsigned int ioctl_num, uns
 		rbtree_devp->readOrderDevice = 0;
 	} else if(ioctl_num == 1) {
 		rbtree_devp->readOrderDevice = 1;
-	} /*
-	else if(ioctl_num == 2) {
-
-		struct rb_node *node;
-		if(rbtree_devp->readOrderDevice == 0) {
-			printk("Displaying Tree Ascending Order\n");
-			for (node = rb_first(&(rbtree_devp->mytree)); node != NULL; node = rb_next(node)) {
-    			printk("key=%d\n", rb_entry(node, struct rb_object, node)->key);
-    			if(rb_next(node) == NULL) {
-    				break;
-    			}
-    		}
-		} else {
-			printk("Displaying Tree DESCENDING Order\n");
-
-    		for (node = rb_last(&(rbtree_devp->mytree)); node != NULL; node = rb_prev(node)) {
-    			printk("key=%d\n", rb_entry(node, struct rb_object, node)->key);
-    			if(rb_prev(node) == NULL) {
-    				break;
-    			}
-    		}
-		}	
-	}
-	*/
+	} 
 	else {
 		printk("ioctl must have 0 or 1 as a parameter to set read order or 2 to displaying all contents\n");
 		// TODO: search how to set up error call ioctl
@@ -450,7 +441,7 @@ ssize_t rbtree_driver_read(struct file *file, char *buf,
 	// bytes read back to user
 	int bytes_read = 0;
 	
-	
+
 
 	if(count != 8) {
 		// copies data to user in 8 byte increments
@@ -463,6 +454,9 @@ ssize_t rbtree_driver_read(struct file *file, char *buf,
 	struct keydata_to_read sendToUser;
 	bool cursorHasBeenUsed = true;
 	//struct rb_node *node;
+
+
+
 
 	//rbtree_devp->readOrderDevice = 1;
 	printk("READ NODES IN TREE KERNELSPACE \n");

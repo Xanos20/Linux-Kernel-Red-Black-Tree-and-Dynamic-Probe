@@ -81,20 +81,19 @@ int write_to_kprobe_driver_remove(int probe_fd) {
 
 }
 
-int write_to_kprobe_driver(int probe_fd) {
+int write_to_kprobe_driver(int probe_fd, int flag, unsigned int offset) {
 	struct kprobe_pair kpair;
-	kpair.flag = 1;
 
-	//00000000000004d0 ffffffff9e684690
-	//0x00000500
 
-	kpair.offsetInsideFunction = 0x0;
+	kpair.flag = flag;
+
+	kpair.offsetInsideFunction = offset;
 	printf("ADDR Passed = %x\n", kpair.offsetInsideFunction);
 
 	int kprobeWrite;
 	kprobeWrite = write(probe_fd, &kpair, sizeof(struct kprobe_pair));
 	if(kprobeWrite < 0) {
-		fprintf(stderr, "Can not write to device file.\n");		
+		fprintf(stderr, "Can not write to device file, error = %d\n", kprobeWrite);		
 		exit(-1);
 
 	}
@@ -255,17 +254,49 @@ int write_pair_to_tree(int tree_fd, int key, int data) {
 
 
 
+
+
+
+
+/*
+int read_from_tree_iterative(int tree_fd) {
+	char buff[sizeof(struct pair)];
+	int res;
+	res = read(tree_fd, buff, sizeof(struct pair));
+	if(res < 0) {
+		// change read order instead of exiting
+		fprintf(stderr, "Read from tree failed with code = %d\n", res);
+		return(-1);
+	}
+	struct pair* validate;
+	validate = (struct pair*) buff;
+	printf("Validate Key Read From Tree Display = %d\n", validate->key);
+	printf("Validate Data Read From Tree Display = %d\n", validate->data);
+	return 0;
+}
+*/
+
+
+
+/*
 int display_tree(int tree_fd) {
+	printf("In Display Tree\n");
 	int ret;
 	ret = ioctl(tree_fd, 2);
 	if(ret != 0) {
 		fprintf(stderr, "Ioctl Command Did Not Work With Code = %d\n", ret);
 		exit(-1);
 	}
+	int rest = 0;
+	while(rest != -1) {
+		rest = read_from_tree_iterative(tree_fd);
+	}
+
+
 	printf("Displayed Contents\n");
 	return 0;
 }
-
+*/
 
 /*
 change_tree_read_order: 
@@ -307,6 +338,12 @@ int read_from_tree(int tree_fd) {
 	printf("Validate Data Read From Tree = %d\n", validate->data);
 	return 0;
 }
+
+
+
+
+
+
 
 
 /////////////////////////////////////////////////////////////////////////
@@ -352,8 +389,8 @@ pthread_attr_t Thread_RW_Tree2_Fourth_Attr;
 
 // The kprobe thread directly controlled by a user
 // Can read/write/ioctl in any tree
-pthread_t Thread_Usr_Controlled_Probe;
-pthread_attr_t Thread_Usr_Controlled_Probe_Attr;
+pthread_t Thread_KProbe;
+pthread_attr_t Thread_KProbe_Attr;
 
 
 // Ensure userspace program can connect and disconnect from drivers
@@ -501,26 +538,75 @@ void* populate_first_tree() {
 		}
 
 */
-/*
 
+/*
 void* interact_with_probes() {
-	char inp[2];
+	char cmd;
 	unsigned int offset;
 
 	while(1) {
-		printf("\n");
-		fgets(inp, 1, stdin);
-		if(inp[0] = 'w') {
-			printf("Provide Flag");
+		printf("w = write\n");
+		printf("r = read\n");
+		printf("q = quit\n");
 
-			printf("Provide Offset (Unsigned Int) \n");
-
+		scanf("%c", cmd);
+		if(cmd == 'w') {
+			printf("Provide Integer Flag \n");
+			printf("1=rbtree_write, \n");
+			printf("2=rbtree_read, \n");
+			printf("-1 = remove probe at rbtree_write, \n");
+			printf("-2 = remove probe at rbtree_read, \n");
+			int flag = 0;
+			scanf("%d", flag);
+			printf("Input for Flag = %d\n", flag);
+			printf("Provide Offset (Unsigned Int in Hex Format) \n");
+			unsigned int offset = 0;
+			scanf("%u", offset);
+			printf("Input For Offset = %u\n", offset);
+			write_to_kprobe_driver(probe_fd, flag, offset);
+		} 
+		else if(cmd == 'r') {
+			printf("Provide Integer Flag \n");
+			int read_flag = 0;
+			scanf("%d", read_flag);
+			read_from_kprobe_driver(probe_fd);
+		} 
+		else if(cmd == 'q') {
+			return (void*) 0;
+		}
+		else {
+			// repeat help message
 		}
 
 	}
+	return (void*) 0;
 
 }
 */
+
+
+void* probes() {
+	printf("In Kprobe Thread\n");
+	write_to_kprobe_driver(probe_fd, 1, 0x0);
+	write_to_kprobe_driverRead(probe_fd);
+	sleep(5);
+	read_from_kprobe_driver(probe_fd);
+	sleep(20);
+	read_from_kprobe_driver(probe_fd);
+	sleep(4);
+	read_from_kprobe_driver(probe_fd);
+	sleep(1);
+	read_from_kprobe_driver(probe_fd);
+
+	// unregister
+	write_to_kprobe_driver_removeRead(probe_fd);
+	write_to_kprobe_driver_remove(probe_fd);
+
+	printf("Kprobe Thread Finished\n");
+
+	return (void*) 0;
+}
+
 
 void* simulate_RWI_Tree1() {
 	printf("IN SIMULATE\n");
@@ -699,6 +785,43 @@ int main(int argc, char **argv) {
 		exit(-1);
 	}
 
+	/*
+	pthread_t Thread_KProbe;
+	pthread_attr_t Thread_KProbe_Attr;
+
+	*/
+	// Set up kprobe thread
+	printf("Check Kprobe Thread\n");
+	int kprobe_thd = -1;
+	int verify_kprobe_attr = -1;
+	
+	verify_kprobe_attr = pthread_attr_init(&Thread_KProbe_Attr);
+	if(verify_kprobe_attr != 0) {
+		fprintf(stderr, "verify_kprobe_attr failed with code = %d\n", verify_kprobe_attr);
+		exit(-1);
+	}
+	
+	printf("Check Attr Policy\n");
+
+	verify_kprobe_attr = pthread_attr_setschedpolicy(&Thread_KProbe_Attr, SCHED_FIFO);
+	if(verify_kprobe_attr != 0) {
+		fprintf(stderr, "verify_kprobe_attr with FIFO failed with code = %d\n", verify_kprobe_attr);
+		exit(-1);
+	}
+
+	// Higher Priority Thread
+	
+	kprobe_thd = pthread_create(&Thread_KProbe, &Thread_KProbe_Attr, probes, NULL);
+	if(kprobe_thd != 0) {
+		fprintf(stderr, "kprobe_thd code = %d\n", kprobe_thd);
+		exit(-1);
+	}
+	printf("Made kprobe pthread\n");
+
+
+
+
+	/////////////////////////////////////////////////////////////////////////
 
 	// Populate second device
 	int did_populate_second_tree = -1;
@@ -713,6 +836,8 @@ int main(int argc, char **argv) {
 	pthread_join(Thread_Populate_Tree1, NULL);
 	pthread_join(Thread_Populate_Tree2, NULL);
 
+	//printf("Display Tree 1\n");
+	//display_tree(tree1_fd);
 
 
 	// Use random multithread operations on first tree
@@ -749,7 +874,7 @@ int main(int argc, char **argv) {
 		fprintf(stderr, "did_first_thread_rwi_tree code = %d\n", did_first_thread_rwi_tree);
 		exit(-1);
 	}
-	printf("Made pthread\n");
+	printf("Made first pthread\n");
 	
 
 
@@ -868,12 +993,13 @@ int main(int argc, char **argv) {
 	// Join all remaining pthreads
 	pthread_join(Thread_RW_Tree2_Third, NULL);
 	pthread_join(Thread_RW_Tree2_Fourth, NULL);
+	pthread_join(Thread_KProbe, NULL);
 
 	printf("All pthreads joined\n");
 
 	printf("Write to kprobe driver\n");
 
-	write_to_kprobe_driver(probe_fd);
+	write_to_kprobe_driver(probe_fd, 1, 0x0);
 	write_pair_to_tree(tree1_fd, 200, 200);	
 	read_from_kprobe_driver(probe_fd);
 
